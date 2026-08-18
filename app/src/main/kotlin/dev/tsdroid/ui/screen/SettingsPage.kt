@@ -113,13 +113,13 @@ fun SettingsPage(
             .padding(horizontal = 16.dp, vertical = 8.dp),
     ) {
         // ── 外观 ──
+        SettingsSectionTitle(stringResource(R.string.section_appearance), Icons.Default.Palette)
         FloatingTile(
             modifier = Modifier.fillMaxWidth(),
-            cornerRadius = 24,
-            contentPadding = 6,
+            cornerRadius = 20,
+            contentPadding = 4,
         ) {
-            Column(modifier = Modifier.padding(vertical = 4.dp)) {
-                SettingsSectionTitle(stringResource(R.string.section_appearance), Icons.Default.Palette)
+            Column(modifier = Modifier.padding(vertical = 2.dp)) {
 
                 // 主题模式
                 SettingsClickableRow(
@@ -169,16 +169,16 @@ fun SettingsPage(
             }
         }
 
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(12.dp))
 
         // ── 音频 ──
+        SettingsSectionTitle(stringResource(R.string.section_audio), Icons.Default.Mic)
         FloatingTile(
             modifier = Modifier.fillMaxWidth(),
-            cornerRadius = 24,
-            contentPadding = 6,
+            cornerRadius = 20,
+            contentPadding = 4,
         ) {
-            Column(modifier = Modifier.padding(vertical = 4.dp)) {
-                SettingsSectionTitle(stringResource(R.string.section_audio), Icons.Default.Mic)
+            Column(modifier = Modifier.padding(vertical = 2.dp)) {
 
                 // 音量增益
                 Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
@@ -204,16 +204,16 @@ fun SettingsPage(
             }
         }
 
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(12.dp))
 
         // ── 聊天 ──
+        SettingsSectionTitle(stringResource(R.string.section_chat), Icons.Default.Forum)
         FloatingTile(
             modifier = Modifier.fillMaxWidth(),
-            cornerRadius = 24,
-            contentPadding = 6,
+            cornerRadius = 20,
+            contentPadding = 4,
         ) {
-            Column(modifier = Modifier.padding(vertical = 4.dp)) {
-                SettingsSectionTitle(stringResource(R.string.section_chat), Icons.Default.Forum)
+            Column(modifier = Modifier.padding(vertical = 2.dp)) {
 
                 SettingsSwitchRow(
                     label = stringResource(R.string.auto_reconnect),
@@ -233,16 +233,16 @@ fun SettingsPage(
             }
         }
 
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(12.dp))
 
         // ── 更多 ──
+        SettingsSectionTitle(stringResource(R.string.section_more), Icons.Default.MoreHoriz)
         FloatingTile(
             modifier = Modifier.fillMaxWidth(),
-            cornerRadius = 24,
-            contentPadding = 6,
+            cornerRadius = 20,
+            contentPadding = 4,
         ) {
-            Column(modifier = Modifier.padding(vertical = 4.dp)) {
-                SettingsSectionTitle(stringResource(R.string.section_more), Icons.Default.MoreHoriz)
+            Column(modifier = Modifier.padding(vertical = 2.dp)) {
 
                 // 语言切换
                 SettingsClickableRow(
@@ -310,20 +310,20 @@ fun SettingsPage(
 @Composable
 private fun SettingsSectionTitle(text: String, icon: androidx.compose.ui.graphics.vector.ImageVector) {
     Row(
-        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+        modifier = Modifier.padding(horizontal = 6.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
             imageVector = icon,
             contentDescription = null,
-            modifier = Modifier.size(18.dp),
+            modifier = Modifier.size(16.dp),
             tint = MaterialTheme.colorScheme.primary,
         )
-        Spacer(Modifier.width(8.dp))
+        Spacer(Modifier.width(6.dp))
         Text(
             text = text,
             style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.primary,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }
@@ -337,7 +337,7 @@ private fun SettingsSwitchRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .padding(horizontal = 16.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
@@ -361,7 +361,7 @@ private fun SettingsClickableRow(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() }
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(text = label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
