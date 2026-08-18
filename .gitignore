@@ -15,6 +15,7 @@ app/src/main/jniLibs/
 # Signing
 *.keystore
 *.jks
+*.apk
 
 # OS
 .DS_Store
