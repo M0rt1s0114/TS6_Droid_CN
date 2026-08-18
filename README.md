@@ -183,6 +183,48 @@ keytool -genkey -v -keystore release.keystore -alias ts6droid -keyalg RSA -keysi
 
 ---
 
+## 如何进行代码检查（Android Lint）
+
+本项目已配置 Android 官方 **Lint** 静态检查工具，可帮你发现潜在 Bug、兼容性风险、无用资源和硬编码文本等问题。
+
+### 在 Android Studio 中运行
+
+1. 打开项目并等待 Gradle 同步完成。
+2. 右侧边栏点击 **Gradle**（大象图标）。
+3. 依次展开：`TS6_Droid` → `app` → `Tasks` → `verification`。
+4. 双击 **lintDebug**，在底部 Build 窗口查看结果。
+5. 或使用菜单 **Analyze → Inspect Code**，在 Problems 窗口逐条查看。
+
+### 在命令行运行
+
+```bash
+# Windows
+gradlew.bat :app:lintDebug
+
+# macOS / Linux
+./gradlew :app:lintDebug
+```
+
+### 报告位置
+
+运行后报告生成在 `app/build/reports/` 目录：
+
+| 文件 | 用途 |
+| --- | --- |
+| `lint-results-debug.html` | 浏览器打开，图文并茂 |
+| `lint-results-debug.txt` | 纯文本摘要 |
+| `lint-results-debug.xml` | 机器可读，方便二次处理 |
+| `lint-results-debug.sarif` | GitHub 等平台通用格式 |
+
+### 配置说明
+
+- 规则配置位于 `app/build.gradle.kts` 的 `lint { ... }` 块。
+- 当前设置 `abortOnError = false`：Lint 发现问题时**不会**中断编译，方便新手边学边修。
+- 已忽略 `GradleDependency`（依赖版本提示）和 `TypographyQuotes`（英文弯引号）两条噪声规则。
+- GitHub Actions 每次推送也会自动运行 Lint，并把报告作为构建产物上传。
+
+---
+
 ## 如何进行云编译 (GitHub Actions)
 
 1. **Fork 本仓库** 到你自己的 GitHub 账号下。

@@ -26,6 +26,19 @@ jobs:
       - name: Ensure Gradle wrapper is executable
         run: chmod +x ./gradlew
 
+      # 💡 Android Lint 静态检查：只报告问题，不中断后续构建
+      # 报告会作为 artifact 上传，可在 Actions 页面下载查看
+      - name: Run Android Lint
+        run: ./gradlew --no-daemon lintDebug -x buildRustLibs
+        continue-on-error: true
+
+      - name: Upload Lint Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: TS6-Han-Lint-Report
+          path: app/build/reports/
+
       # 💡 核心：利用 -x 参数强制跳过原作者的 Rust 编译任务
       # Gradle 会聪明地直接把你刚刚上传的 jniLibs 里的现成 .so 库打包打包带走
       - name: Build Debug APK

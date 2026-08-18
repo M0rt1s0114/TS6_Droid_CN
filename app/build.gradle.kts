@@ -65,6 +65,32 @@ android {
             java.srcDirs("src/main/java", "src/main/kotlin")
         }
     }
+
+    // Android Lint 静态检查配置
+    // 运行方式：Android Studio 右侧 Gradle 面板 -> app -> verification -> lintDebug
+    // 或命令行：.\gradlew.bat :app:lintDebug
+    // 报告位置：app/build/reports/lint-results-debug.html / .txt / .xml / .sarif
+    lint {
+        // 新手友好：lint 发现问题时仍能正常编译，问题会在报告里完整列出
+        abortOnError = false
+        checkReleaseBuilds = false
+        warningsAsErrors = false
+
+        // 明确开启所有常见报告格式
+        htmlReport = true
+        xmlReport = true
+        textReport = true
+        sarifReport = true
+
+        // 同时检查第三方依赖库里的问题
+        checkDependencies = true
+
+        // 关闭与项目实际情况不相关、或纯“催促升级依赖”的噪声规则
+        disable += setOf(
+            "GradleDependency",   // “有新版依赖可用”只是提示，不是代码问题
+            "TypographyQuotes",   // 中文文案不需要英文弯引号规则
+        )
+    }
 }
 
 // Task to build Rust native libraries via cargo-ndk
