@@ -87,8 +87,12 @@ android {
 
         // 关闭与项目实际情况不相关、或纯“催促升级依赖”的噪声规则
         disable += setOf(
-            "GradleDependency",   // “有新版依赖可用”只是提示，不是代码问题
-            "TypographyQuotes",   // 中文文案不需要英文弯引号规则
+            "GradleDependency",           // “有新版依赖可用”只是提示，不是代码问题
+            "AndroidGradlePluginVersion", // 同上：AGP 版本升级是发布决策，不阻塞日常检查
+            "OldTargetApi",               // targetSdk 由发布计划决定，不是代码缺陷
+            "AppBundleLocaleChanges",     // 本项目通过 GitHub 分发 APK，不打 App Bundle
+            "ObsoleteSdkInt",             // adaptive-icon 仍需 -v26 目录，AAPT2 不接受无版本限定
+            "TypographyQuotes",           // 中文文案不需要英文弯引号规则
         )
     }
 }
