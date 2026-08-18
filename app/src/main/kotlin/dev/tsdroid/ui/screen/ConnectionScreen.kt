@@ -84,9 +84,9 @@ import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.tsdroid.han.R
 import dev.tslib.ConnectionState
-import dev.tsdroid.ui.component.AnimeBackground
 import dev.tsdroid.ui.component.AnimeWallpaperState
 import dev.tsdroid.ui.component.ChannelTree
+import dev.tsdroid.ui.component.CustomBackground
 import dev.tsdroid.ui.component.FloatingTile
 import dev.tsdroid.viewmodel.ConnectionViewModel
 import kotlinx.coroutines.launch
@@ -120,8 +120,6 @@ fun ConnectionScreen(
 
     val isConnecting = connectionState == ConnectionState.CONNECTING
     val context = LocalContext.current
-    val settingsStore = remember { dev.tsdroid.data.SettingsStore(context) }
-    val animeBackground by settingsStore.animeBackground.collectAsStateWithLifecycle(initialValue = true)
 
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -150,12 +148,12 @@ fun ConnectionScreen(
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        AnimeBackground(enabled = animeBackground)
+        CustomBackground()
 
         Scaffold(
             containerColor = Color.Transparent,
             topBar = {
-                val adaptiveTopBarColor = if (animeBackground) {
+                val adaptiveTopBarColor = if (AnimeWallpaperState.customBitmap.value != null) {
                     AnimeWallpaperState.recommendedContentColor.value
                         ?: MaterialTheme.colorScheme.onSurface
                 } else {
@@ -201,17 +199,9 @@ fun ConnectionScreen(
             },
         ) { padding ->
             Box(modifier = Modifier.fillMaxSize().padding(padding)) {
-                // Tab 0: Home
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .graphicsLayer { alpha = if (selectedTab == 0) 1f else 0f }
-                        .then(
-                            if (selectedTab == 0) Modifier else Modifier.graphicsLayer {
-                                translationY = -size.height
-                            }
-                        ),
-                ) {
+                if (selectedTab == 0) {
+                    // Tab 0: Home
+                    Box(modifier = Modifier.fillMaxSize()) {
                     if (bookmarks.isEmpty()) {
                         Box(
                             modifier = Modifier.fillMaxSize(),
@@ -245,6 +235,12 @@ fun ConnectionScreen(
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
+                                Spacer(Modifier.height(4.dp))
+                                Button(onClick = { showBottomSheet = true }) {
+                                    Icon(Icons.Default.Add, contentDescription = null)
+                                    Spacer(Modifier.width(4.dp))
+                                    Text(stringResource(R.string.manual_connection))
+                                }
                             }
                         }
                     } else {
@@ -252,6 +248,7 @@ fun ConnectionScreen(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .padding(horizontal = 16.dp)
+                                .padding(bottom = 88.dp)
                                 .verticalScroll(rememberScrollState()),
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
@@ -399,25 +396,15 @@ fun ConnectionScreen(
                         }
                     }
 
-                // Tab 1: Settings (always in composition, hidden when not selected)
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .graphicsLayer { alpha = if (selectedTab == 1) 1f else 0f }
-                        .then(
-                            if (selectedTab == 1) Modifier else Modifier.graphicsLayer {
-                                translationY = size.height
-                            }
-                        ),
-                ) {
+                } else {
+                    // Tab 1: Settings
                     SettingsPage(
-                        onNavigateToAbout = onNavigateToAbout,
-                        autoReconnect = autoReconnect,
-                        onAutoReconnectChange = { viewModel.setAutoReconnect(it) },
+                    onNavigateToAbout = onNavigateToAbout,
+                    autoReconnect = autoReconnect,
+                    onAutoReconnectChange = { viewModel.setAutoReconnect(it) },
                     )
                 }
             }
-
             deleteConfirmIndex?.let { idx ->
                 val bookmarkName = bookmarks.getOrNull(idx)?.let { it.serverName ?: it.name } ?: ""
                 AlertDialog(
