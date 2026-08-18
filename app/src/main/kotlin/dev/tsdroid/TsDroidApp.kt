@@ -3,7 +3,13 @@ package dev.tsdroid
 import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.util.Log
+import dev.tsdroid.diag.DiagLog
 import dev.tsdroid.han.R
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class TsDroidApp : Application() {
 
@@ -18,6 +24,7 @@ class TsDroidApp : Application() {
     override fun onCreate() {
         super.onCreate()
         createNotificationChannels()
+        initDiagnostics()
     }
 
     private fun createNotificationChannels() {
@@ -30,5 +37,37 @@ class TsDroidApp : Application() {
         }
         val manager = getSystemService(NotificationManager::class.java)
         manager.createNotificationChannel(channel)
+    }
+
+    /**
+     * Keeps a small diag.log for connection/audio issues and saves a
+     * crash-<timestamp>.log for every uncaught exception. The files live in
+     * Android/data/com.yuaxi.ts6droid.cn/files/logs/ and can be pulled with
+     * adb or a USB file browser.
+     */
+    private fun initDiagnostics() {
+        val logDir = File(getExternalFilesDir(null) ?: filesDir, "logs")
+        DiagLog.init(logDir)
+
+        val previousHandler = Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
+            try {
+                val stamp = SimpleDateFormat("yyyyMMdd-HHmmss", Locale.US).format(Date())
+                val crashFile = File(logDir, "crash-$stamp.log")
+                crashFile.writeText(
+                    buildString {
+                        appendLine("time=$stamp")
+                        appendLine("thread=${thread.name}")
+                        appendLine(Log.getStackTraceString(throwable))
+                    }
+                )
+                DiagLog.e("TsDroidApp", "Crash saved to ${crashFile.absolutePath}", throwable)
+            } catch (_: Throwable) {
+                Log.e("TsDroidApp", "Failed to persist crash log", throwable)
+            } finally {
+                previousHandler?.uncaughtException(thread, throwable)
+            }
+        }
+        DiagLog.i("TsDroidApp", "Application started")
     }
 }

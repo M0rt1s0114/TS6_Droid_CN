@@ -225,6 +225,33 @@ gradlew.bat :app:lintDebug
 
 ---
 
+## 常见问题排查（诊断日志）
+
+应用现在会把连接、音频采集、崩溃等关键事件写入设备日志，方便定位问题。
+
+### 日志位置
+
+- 手机存储：`Android/data/com.yuaxi.ts6droid.cn/files/logs/`
+  - `diag.log`：连接/音频生命周期日志（超过 512 KB 自动轮转）
+  - `crash-<时间>.log`：每次崩溃的完整堆栈
+- Logcat 中同时输出，tag 包括 `TsConnService`、`AudioBridge`、`TsDroidApp`。
+
+### 用 adb 导出日志
+
+```bash
+adb pull /sdcard/Android/data/com.yuaxi.ts6droid.cn/files/logs/ ./ts6-logs
+```
+
+### 锁屏后麦克风无声
+
+本应用使用带 `microphone` 类型的前台服务 + 唤醒锁保持采集。如果仍无声，请依次确认：
+
+1. 系统设置中允许「麦克风」权限；
+2. 电池优化里将本应用设为「不限制」；
+3. 导出 `diag.log`，重点看 `AudioBridge` 的 `Microphone read failed` 或 `Partial microphone read` 记录。
+
+---
+
 ## 如何进行云编译 (GitHub Actions)
 
 1. **Fork 本仓库** 到你自己的 GitHub 账号下。
