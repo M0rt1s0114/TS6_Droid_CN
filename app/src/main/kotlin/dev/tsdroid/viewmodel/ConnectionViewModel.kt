@@ -70,6 +70,14 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
     private val _bookmarkIcons = MutableStateFlow<Map<Long, ImageBitmap>>(emptyMap())
     val bookmarkIcons: StateFlow<Map<Long, ImageBitmap>> = _bookmarkIcons.asStateFlow()
 
+    private val _connectionState = MutableStateFlow(ConnectionState.DISCONNECTED)
+    val connectionState: StateFlow<Int> = _connectionState.asStateFlow()
+
+    private val _activeAddress = MutableStateFlow<String?>(null)
+    val activeAddress: StateFlow<String?> = _activeAddress.asStateFlow()
+
+    private var resumeAttempted = false
+
     init {
         // Load bookmark icons from disk cache
         viewModelScope.launch {
@@ -122,14 +130,6 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
             _bookmarkIcons.value = _bookmarkIcons.value + newIcons
         }
     }
-
-    private val _connectionState = MutableStateFlow(ConnectionState.DISCONNECTED)
-    val connectionState: StateFlow<Int> = _connectionState.asStateFlow()
-
-    private val _activeAddress = MutableStateFlow<String?>(null)
-    val activeAddress: StateFlow<String?> = _activeAddress.asStateFlow()
-
-    private var resumeAttempted = false
 
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
