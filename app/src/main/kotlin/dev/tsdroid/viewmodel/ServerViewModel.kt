@@ -94,7 +94,6 @@ class ServerViewModel(application: Application) : AndroidViewModel(application) 
 
     private var tsClient: TsClient? = null
     private var audioBridge: AudioBridge? = null
-    private var connectionService: TsConnectionService? = null
 
     private val _channels = MutableStateFlow<List<Channel>>(emptyList())
     val channels: StateFlow<List<Channel>> = _channels.asStateFlow()
@@ -266,7 +265,6 @@ class ServerViewModel(application: Application) : AndroidViewModel(application) 
             tsClient = service.tsClient
             audioBridge = service.audioBridge
             audioBridge?.setMutedUserIds(_mutedUserIds.value)
-            connectionService = service
             queriedPermChannels.clear()
 
             viewModelScope.launch {
@@ -1002,7 +1000,7 @@ class ServerViewModel(application: Application) : AndroidViewModel(application) 
     fun disconnect() {
         saveNow()
         queriedPermChannels.clear()
-        connectionService?.disconnect()
+        TsConnectionService.instance?.disconnect()
     }
 
     override fun onCleared() {
@@ -1010,7 +1008,6 @@ class ServerViewModel(application: Application) : AndroidViewModel(application) 
         bound = false
         tsClient = null
         audioBridge = null
-        connectionService = null
         super.onCleared()
     }
 
