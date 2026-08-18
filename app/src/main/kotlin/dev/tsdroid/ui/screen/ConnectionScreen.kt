@@ -346,34 +346,32 @@ fun ConnectionScreen(
                                         }
                                     }
 
-                                    if (bookmark.clientsOnline > 0 || bookmark.channelsOnline > 0 || bookmark.uptime > 0) {
-                                        Spacer(Modifier.height(10.dp))
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                        ) {
-                                            StatChip(
-                                                icon = Icons.Outlined.Person,
-                                                text = if (bookmark.maxClients > 0) {
-                                                    "${bookmark.clientsOnline}/${bookmark.maxClients}"
-                                                } else {
-                                                    "${bookmark.clientsOnline}"
-                                                },
-                                                modifier = Modifier.weight(1f),
-                                            )
-                                            StatChip(
-                                                icon = Icons.Outlined.Folder,
-                                                text = "${bookmark.channelsOnline}",
-                                                modifier = Modifier.weight(1f),
-                                            )
-                                            StatChip(
-                                                icon = Icons.Outlined.Schedule,
-                                                text = formatUptime(bookmark.uptime),
-                                                modifier = Modifier.weight(1f),
-                                            )
-                                        }
-                                        Spacer(Modifier.height(10.dp))
+                                    Spacer(Modifier.height(10.dp))
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    ) {
+                                        StatChip(
+                                            icon = Icons.Outlined.Person,
+                                            text = when {
+                                                bookmark.maxClients > 0 -> "${bookmark.clientsOnline}/${bookmark.maxClients}"
+                                                bookmark.clientsOnline > 0 -> "${bookmark.clientsOnline}"
+                                                else -> "--"
+                                            },
+                                            modifier = Modifier.weight(1f),
+                                        )
+                                        StatChip(
+                                            icon = Icons.Outlined.Folder,
+                                            text = if (bookmark.channelsOnline > 0) "${bookmark.channelsOnline}" else "--",
+                                            modifier = Modifier.weight(1f),
+                                        )
+                                        StatChip(
+                                            icon = Icons.Outlined.Schedule,
+                                            text = formatUptime(bookmark.uptime),
+                                            modifier = Modifier.weight(1f),
+                                        )
                                     }
+                                    Spacer(Modifier.height(10.dp))
 
                                     Button(
                                         onClick = { viewModel.connectBookmark(bookmark, onConnected) },
