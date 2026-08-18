@@ -181,7 +181,7 @@ fun SettingsPage(
                 SettingsSectionTitle(stringResource(R.string.section_audio), Icons.Default.Mic)
 
                 // 音量增益
-                Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
+                Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
                     Text(
                         text = "${stringResource(R.string.audio_gain)} : ${stringResource(R.string.audio_gain_value, audioGain)}",
                         style = MaterialTheme.typography.bodyLarge,
@@ -310,7 +310,7 @@ fun SettingsPage(
 @Composable
 private fun SettingsSectionTitle(text: String, icon: androidx.compose.ui.graphics.vector.ImageVector) {
     Row(
-        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
@@ -337,7 +337,7 @@ private fun SettingsSwitchRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 14.dp),
+            .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
@@ -361,7 +361,7 @@ private fun SettingsClickableRow(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() }
-            .padding(horizontal = 16.dp, vertical = 16.dp),
+            .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(text = label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
