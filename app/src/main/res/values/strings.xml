@@ -49,6 +49,7 @@
     <string name="ptt">PTT</string>
     <string name="mute_mic">Couper le micro</string>
     <string name="mute">Mute</string>
+    <string name="input_muted_state">Micro coupé</string>
     <string name="unmute_mic">Activer le micro</string>
     <string name="tab_channel">Channel</string>
     <string name="tab_private">MP</string>

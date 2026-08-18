@@ -329,20 +329,24 @@ class AudioBridge(
     }
 
     fun setMuted(muted: Boolean) {
-        _isMuted.value = muted
-        tsClient.setInputMuted(muted)
+        // Deafen wins: while speaker output is muted the microphone must
+        // stay muted too, even if a caller tries to unmute it directly.
+        val effective = muted || _isOutputMuted.value
+        _isMuted.value = effective
+        tsClient.setInputMuted(effective)
     }
 
     fun toggleMute() {
-        val newState = !_isMuted.value
-        _isMuted.value = newState
-        tsClient.setInputMuted(newState)
+        setMuted(!_isMuted.value)
     }
 
     fun setOutputMuted(muted: Boolean) {
         _isOutputMuted.value = muted
-        // When output is muted, clear all queued audio so nothing plays
         if (muted) {
+            // Speaker mute implies microphone mute (one-way relation).
+            _isMuted.value = true
+            tsClient.setInputMuted(true)
+            // When output is muted, clear all queued audio so nothing plays
             for ((_, queue) in userQueues) {
                 synchronized(queue) { queue.clear() }
             }
