@@ -288,7 +288,7 @@ class ServerViewModel(application: Application) : AndroidViewModel(application) 
                         bookmarkUpdated = true
                         val addr = serverAddress ?: service.tsClient.serverAddress ?: ""
                         if (addr.isNotEmpty()) {
-                            bookmarkStore.updateServerInfo(addr, info.name, info.iconId)
+                            bookmarkStore.updateServerInfo(addr, info)
                             // Download server icon if needed
                             if (info.iconId != 0L) {
                                 iconCache.loadIcon(info.iconId, service.tsClient)

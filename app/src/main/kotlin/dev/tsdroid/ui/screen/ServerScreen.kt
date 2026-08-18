@@ -22,7 +22,9 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -35,6 +37,7 @@ import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.ChatBubble
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.Headset
 import androidx.compose.material.icons.filled.HeadsetOff
 import androidx.compose.material.icons.filled.Mic
@@ -61,8 +64,6 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -82,6 +83,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -90,6 +92,7 @@ import dev.tslib.ConnectionState
 import dev.tslib.User
 import dev.tsdroid.ui.component.AnimeBackground
 import dev.tsdroid.ui.component.AnimeWallpaperState
+import dev.tsdroid.ui.component.FloatingTile
 import dev.tsdroid.ui.component.ChannelTree
 import dev.tsdroid.ui.component.ChatView
 import dev.tsdroid.ui.component.FileManagerDialog
@@ -206,20 +209,77 @@ fun ServerScreen(
             } else {
                 MaterialTheme.colorScheme.onSurface
             }
-            TopAppBar(
-                title = { Text(serverInfo?.name ?: stringResource(R.string.server)) },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Transparent,
-                    scrolledContainerColor = Color.Transparent,
-                    titleContentColor = adaptiveTopBarColor,
-                    actionIconContentColor = adaptiveTopBarColor,
-                ),
-                actions = {
-                    IconButton(onClick = { viewModel.toggleFileManager() }) {
-                        Icon(Icons.Default.Folder, contentDescription = stringResource(R.string.file_manager))
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .statusBarsPadding()
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+            ) {
+                FloatingTile(
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .wrapContentSize(),
+                    cornerRadius = 24,
+                    contentPadding = 14,
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            modifier = Modifier.size(34.dp),
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    Icons.Default.Dns,
+                                    contentDescription = null,
+                                    tint = adaptiveTopBarColor,
+                                    modifier = Modifier.size(20.dp),
+                                )
+                            }
+                        }
+                        Spacer(Modifier.width(10.dp))
+                        Column {
+                            Text(
+                                text = serverInfo?.name ?: stringResource(R.string.server),
+                                style = MaterialTheme.typography.titleSmall,
+                                color = adaptiveTopBarColor,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            val maxClients = serverInfo?.maxClients ?: 0
+                            val subtitle = if (maxClients > 0) {
+                                "${users.size}/$maxClients · ${channels.size}"
+                            } else {
+                                "${users.size} · ${channels.size}"
+                            }
+                            Text(
+                                text = subtitle,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = adaptiveTopBarColor.copy(alpha = 0.7f),
+                                maxLines = 1,
+                            )
+                        }
+                        Spacer(Modifier.width(10.dp))
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .background(Color(0xFF4CAF50), CircleShape),
+                        )
                     }
-                },
-            )
+                }
+
+                IconButton(
+                    onClick = { viewModel.toggleFileManager() },
+                    modifier = Modifier.align(Alignment.CenterEnd),
+                ) {
+                    Icon(
+                        Icons.Default.Folder,
+                        contentDescription = stringResource(R.string.file_manager),
+                        tint = adaptiveTopBarColor,
+                    )
+                }
+            }
         },
         bottomBar = {
             Box(
@@ -399,25 +459,33 @@ fun ServerScreen(
                 .fillMaxSize()
                 .padding(padding),
         ) {
-            // Channel tree 鈥?full screen
-            ChannelTree(
-                channels = channels,
-                users = users,
-                onChannelClick = { channelId -> viewModel.moveToChannel(channelId) },
-                onUserClick = { user ->
-                    pmTargetId = user.id
-                    chatTab = 1
-                    chatOpen = true
-                },
-                onUserLongClick = { user -> viewModel.toggleMuteUser(user.id) },
-                onWhisperClick = { userId -> viewModel.toggleWhisper(userId) },
-                mutedUserIds = mutedUserIds,
-                channelIcons = channelIcons,
-                userAvatars = userAvatars,
+            // Channel tree inside one large floating tile
+            FloatingTile(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 8.dp),
-            )
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                cornerRadius = 20,
+                contentPadding = 8,
+            ) {
+                ChannelTree(
+                    channels = channels,
+                    users = users,
+                    onChannelClick = { channelId -> viewModel.moveToChannel(channelId) },
+                    onUserClick = { user ->
+                        pmTargetId = user.id
+                        chatTab = 1
+                        chatOpen = true
+                    },
+                    onUserLongClick = { user -> viewModel.toggleMuteUser(user.id) },
+                    onWhisperClick = { userId -> viewModel.toggleWhisper(userId) },
+                    mutedUserIds = mutedUserIds,
+                    channelIcons = channelIcons,
+                    userAvatars = userAvatars,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                )
+            }
 
             // File manager 鈥?slides up from bottom, fills content area
             val fileManagerProgress by animateFloatAsState(

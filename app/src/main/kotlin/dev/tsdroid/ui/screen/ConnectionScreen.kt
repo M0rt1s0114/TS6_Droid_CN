@@ -5,6 +5,7 @@ import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,21 +20,23 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -75,6 +78,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -83,6 +87,7 @@ import dev.tslib.ConnectionState
 import dev.tsdroid.ui.component.AnimeBackground
 import dev.tsdroid.ui.component.AnimeWallpaperState
 import dev.tsdroid.ui.component.ChannelTree
+import dev.tsdroid.ui.component.FloatingTile
 import dev.tsdroid.viewmodel.ConnectionViewModel
 import kotlinx.coroutines.launch
 
@@ -251,85 +256,144 @@ fun ConnectionScreen(
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
                             bookmarks.forEachIndexed { index, bookmark ->
-                                    Card(
+                                val icon = if (bookmark.iconId != 0L) bookmarkIcons[bookmark.iconId] else null
+                                val active = dev.tsdroid.service.TsConnectionService.instance
+                                    ?.hasActiveConnection(bookmark.address) == true
+                                val statusColor = when {
+                                    active -> Color(0xFF4CAF50)
+                                    bookmark.lastSeenAt > 0 -> Color(0xFFFFB300)
+                                    else -> MaterialTheme.colorScheme.outline
+                                }
+
+                                FloatingTile(modifier = Modifier.fillMaxWidth()) {
+                                    Row(
                                         modifier = Modifier.fillMaxWidth(),
-                                        shape = MaterialTheme.shapes.large,
-                                        colors = CardDefaults.cardColors(
-                                            containerColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.92f),
-                                        ),
-                                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
                                     ) {
-                                        Row(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(12.dp),
-                                            verticalAlignment = Alignment.CenterVertically,
+                                        Surface(
+                                            shape = RoundedCornerShape(14.dp),
+                                            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                            modifier = Modifier.size(48.dp),
                                         ) {
-                                            val icon = if (bookmark.iconId != 0L) bookmarkIcons[bookmark.iconId] else null
-                                            if (icon != null) {
-                                                Image(
-                                                    bitmap = icon,
-                                                    contentDescription = null,
-                                                    modifier = Modifier.size(32.dp),
-                                                    contentScale = ContentScale.Fit,
-                                                )
-                                            } else {
-                                                Icon(
-                                                    Icons.Default.Star,
-                                                    contentDescription = null,
-                                                    modifier = Modifier.size(32.dp),
-                                                    tint = MaterialTheme.colorScheme.primary,
-                                                )
-                                            }
-                                            Spacer(Modifier.width(12.dp))
-                                            Column(modifier = Modifier.weight(1f)) {
-                                                Text(
-                                                    bookmark.serverName ?: bookmark.name,
-                                                    style = MaterialTheme.typography.bodyLarge,
-                                                )
-                                                Text(
-                                                    bookmark.address,
-                                                    style = MaterialTheme.typography.bodySmall,
-                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                )
-                                            }
-                                            FilledTonalButton(
-                                                onClick = { viewModel.connectBookmark(bookmark, onConnected) },
-                                                enabled = !isConnecting,
-                                            ) {
-                                                Text(stringResource(R.string.connect))
-                                            }
-                                            Box {
-                                                var menuExpanded by remember { mutableStateOf(false) }
-                                                IconButton(onClick = { menuExpanded = true }) {
-                                                    Icon(Icons.Default.MoreVert, contentDescription = null)
-                                                }
-                                                DropdownMenu(
-                                                    expanded = menuExpanded,
-                                                    onDismissRequest = { menuExpanded = false },
-                                                ) {
-                                                    DropdownMenuItem(
-                                                        text = { Text(stringResource(R.string.edit)) },
-                                                        onClick = {
-                                                            menuExpanded = false
-                                                            viewModel.editBookmark(bookmark, index)
-                                                            showBottomSheet = true
-                                                        },
-                                                        leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) },
+                                            Box(contentAlignment = Alignment.Center) {
+                                                if (icon != null) {
+                                                    Image(
+                                                        bitmap = icon,
+                                                        contentDescription = null,
+                                                        modifier = Modifier.size(32.dp),
+                                                        contentScale = ContentScale.Fit,
                                                     )
-                                                    DropdownMenuItem(
-                                                        text = { Text(stringResource(R.string.remove)) },
-                                                        onClick = {
-                                                            menuExpanded = false
-                                                            deleteConfirmIndex = index
-                                                        },
-                                                        leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null) },
+                                                } else {
+                                                    Icon(
+                                                        Icons.Default.Star,
+                                                        contentDescription = null,
+                                                        tint = MaterialTheme.colorScheme.primary,
+                                                        modifier = Modifier.size(28.dp),
                                                     )
                                                 }
                                             }
                                         }
+                                        Spacer(Modifier.width(12.dp))
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Text(
+                                                    text = bookmark.serverName ?: bookmark.name,
+                                                    style = MaterialTheme.typography.titleMedium,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis,
+                                                )
+                                                Spacer(Modifier.width(6.dp))
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(8.dp)
+                                                        .background(statusColor, CircleShape),
+                                                )
+                                            }
+                                            Text(
+                                                text = bookmark.address,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis,
+                                            )
+                                        }
+
+                                        var menuExpanded by remember { mutableStateOf(false) }
+                                        Box {
+                                            IconButton(onClick = { menuExpanded = true }) {
+                                                Icon(Icons.Default.MoreVert, contentDescription = null)
+                                            }
+                                            DropdownMenu(
+                                                expanded = menuExpanded,
+                                                onDismissRequest = { menuExpanded = false },
+                                            ) {
+                                                DropdownMenuItem(
+                                                    text = { Text(stringResource(R.string.edit)) },
+                                                    onClick = {
+                                                        menuExpanded = false
+                                                        viewModel.editBookmark(bookmark, index)
+                                                        showBottomSheet = true
+                                                    },
+                                                    leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) },
+                                                )
+                                                DropdownMenuItem(
+                                                    text = { Text(stringResource(R.string.remove)) },
+                                                    onClick = {
+                                                        menuExpanded = false
+                                                        deleteConfirmIndex = index
+                                                    },
+                                                    leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null) },
+                                                )
+                                            }
+                                        }
+                                    }
+
+                                    if (bookmark.clientsOnline > 0 || bookmark.channelsOnline > 0 || bookmark.uptime > 0) {
+                                        Spacer(Modifier.height(10.dp))
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        ) {
+                                            StatChip(
+                                                icon = Icons.Default.Person,
+                                                text = if (bookmark.maxClients > 0) {
+                                                    "${bookmark.clientsOnline}/${bookmark.maxClients}"
+                                                } else {
+                                                    "${bookmark.clientsOnline}"
+                                                },
+                                                modifier = Modifier.weight(1f),
+                                            )
+                                            StatChip(
+                                                icon = Icons.Default.Folder,
+                                                text = "${bookmark.channelsOnline}",
+                                                modifier = Modifier.weight(1f),
+                                            )
+                                            StatChip(
+                                                icon = Icons.Default.Schedule,
+                                                text = formatUptime(bookmark.uptime),
+                                                modifier = Modifier.weight(1f),
+                                            )
+                                        }
+                                        Spacer(Modifier.height(10.dp))
+                                    }
+
+                                    Button(
+                                        onClick = { viewModel.connectBookmark(bookmark, onConnected) },
+                                        enabled = !isConnecting,
+                                        modifier = Modifier.fillMaxWidth(),
+                                    ) {
+                                        if (isConnecting) {
+                                            CircularProgressIndicator(
+                                                modifier = Modifier.size(16.dp),
+                                                strokeWidth = 2.dp,
+                                            )
+                                            Spacer(Modifier.width(8.dp))
+                                        }
+                                        Text(stringResource(R.string.connect))
                                     }
                                 }
+                                Spacer(Modifier.height(10.dp))
+                            }
                             }
                             Spacer(Modifier.height(16.dp))
                         }
@@ -538,5 +602,49 @@ fun ConnectionScreen(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun StatChip(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    text: String,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(10.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center,
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(14.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.width(4.dp))
+            Text(
+                text = text,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+private fun formatUptime(seconds: Long): String {
+    if (seconds <= 0) return "--"
+    val days = seconds / 86_400
+    val hours = (seconds % 86_400) / 3_600
+    val minutes = (seconds % 3_600) / 60
+    return when {
+        days > 0 -> "${days}d ${hours}h"
+        hours > 0 -> "${hours}h ${minutes}m"
+        else -> "${minutes}m"
     }
 }
