@@ -109,6 +109,17 @@ class BookmarkStore(private val context: Context) {
         }
     }
 
+    suspend fun addConnectedSeconds(address: String, seconds: Long) {
+        if (seconds <= 0) return
+        context.dataStore.edit { prefs ->
+            val current = parseBookmarks(prefs[KEY_BOOKMARKS] ?: "[]")
+            val updated = current.map { b ->
+                if (b.address == address) b.copy(connectedSeconds = b.connectedSeconds + seconds) else b
+            }
+            prefs[KEY_BOOKMARKS] = serializeBookmarks(updated)
+        }
+    }
+
     private fun parseBookmarks(json: String): List<ServerBookmark> {
         if (json.isBlank() || json == "[]") return emptyList()
         return try {
@@ -130,6 +141,7 @@ class BookmarkStore(private val context: Context) {
                     channelsOnline = o.optInt("channelsOnline", 0),
                     uptime = o.optLong("uptime", 0),
                     lastSeenAt = o.optLong("lastSeenAt", 0),
+                    connectedSeconds = o.optLong("connectedSeconds", 0),
                 )
             }
         } catch (_: Exception) {
@@ -155,6 +167,7 @@ class BookmarkStore(private val context: Context) {
             o.put("channelsOnline", b.channelsOnline)
             o.put("uptime", b.uptime)
             o.put("lastSeenAt", b.lastSeenAt)
+            o.put("connectedSeconds", b.connectedSeconds)
             array.put(o)
         }
         return array.toString()

@@ -17,4 +17,7 @@ data class ServerBookmark(
     val channelsOnline: Int = 0,
     val uptime: Long = 0,
     val lastSeenAt: Long = 0,
+    // Cumulative time this device has spent connected to this server,
+    // tracked locally in seconds.
+    val connectedSeconds: Long = 0,
 )

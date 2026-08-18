@@ -62,6 +62,7 @@ import dev.tsdroid.bridge.AudioBridge
 import dev.tsdroid.bridge.AvatarCache
 import dev.tsdroid.bridge.TsClient
 import dev.tsdroid.bridge.WhisperBridge
+import dev.tsdroid.data.BookmarkStore
 import dev.tsdroid.diag.DiagLog
 import dev.tslib.Identity
 import dev.tslib.Channel
@@ -77,6 +78,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 
 class TsConnectionService : LifecycleService(), ViewModelStoreOwner, SavedStateRegistryOwner {
@@ -152,6 +154,10 @@ class TsConnectionService : LifecycleService(), ViewModelStoreOwner, SavedStateR
     private var latestStartId = 0
     @Volatile private var isStopping = false
     @Volatile private var restartRequestedWhileStopping = false
+
+    /** When the current successful connection started; 0 when not connected. */
+    @Volatile
+    private var connectionStartedAt = 0L
 
     override fun onCreate() {
         super.onCreate()
@@ -493,6 +499,18 @@ class TsConnectionService : LifecycleService(), ViewModelStoreOwner, SavedStateR
         }
     }
 
+    private suspend fun recordConnectedSeconds() {
+        val started = connectionStartedAt
+        val address = tsClient.serverAddress
+        connectionStartedAt = 0
+        if (started <= 0 || address.isNullOrEmpty()) return
+        val seconds = (System.currentTimeMillis() - started).coerceAtLeast(0L) / 1000
+        if (seconds > 0) {
+            BookmarkStore(applicationContext).addConnectedSeconds(address, seconds)
+            DiagLog.i(TAG, "Recorded $seconds seconds connected to $address")
+        }
+    }
+
     suspend fun connect(address: String, identity: Identity, nickname: String, password: String?): Throwable? {
         if (isStopping) {
             return IllegalStateException("Connection service is still stopping. Please try again.")
@@ -503,6 +521,7 @@ class TsConnectionService : LifecycleService(), ViewModelStoreOwner, SavedStateR
         return try {
             tsClient.connect(address, identity, nickname, password)
             DiagLog.i(TAG, "Native connection established")
+            connectionStartedAt = System.currentTimeMillis()
             audioBridge.startCapture(serviceScope, noiseSuppressionEnabled)
             // Sync initial mute state with server
             if (audioBridge.isMuted.value) {
@@ -533,6 +552,7 @@ class TsConnectionService : LifecycleService(), ViewModelStoreOwner, SavedStateR
         isIntentionalDisconnect = true
         serviceScope.launch(Dispatchers.IO) {
             try {
+                recordConnectedSeconds()
                 tsClient.disconnect()
             } finally {
                 withContext(Dispatchers.Main) {
@@ -558,6 +578,7 @@ class TsConnectionService : LifecycleService(), ViewModelStoreOwner, SavedStateR
         audioBridge.stopCapture()
         WhisperManager.reset()
         releaseWakeLock()
+        connectionStartedAt = 0
         isStopping = false
         restartRequestedWhileStopping = false
         instance = this
@@ -793,6 +814,11 @@ class TsConnectionService : LifecycleService(), ViewModelStoreOwner, SavedStateR
         audioBridge.stopCapture()
         WhisperManager.reset()
         releaseWakeLock()
+        try {
+            runBlocking(Dispatchers.IO) { recordConnectedSeconds() }
+        } catch (t: Throwable) {
+            DiagLog.w(TAG, "Failed to record connected time during destroy", t)
+        }
         try {
             tsClient.disconnect()
         } catch (e: Throwable) {

@@ -29,10 +29,10 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Star
@@ -112,6 +112,7 @@ fun ConnectionScreen(
     val browsedChannels by viewModel.browsedChannels.collectAsStateWithLifecycle()
     val isBrowsing by viewModel.isBrowsing.collectAsStateWithLifecycle()
     val showChannelPicker by viewModel.showChannelPicker.collectAsStateWithLifecycle()
+    val refreshingBookmarks by viewModel.refreshingBookmarks.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     var deleteConfirmIndex by remember { mutableStateOf<Int?>(null) }
     var showBottomSheet by remember { mutableStateOf(false) }
@@ -162,10 +163,30 @@ fun ConnectionScreen(
                 }
                 TopAppBar(
                     title = {
-                        Text(
-                            text = if (selectedTab == 0) stringResource(R.string.app_name)
-                                   else stringResource(R.string.tab_settings)
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = if (selectedTab == 0) stringResource(R.string.app_name)
+                                       else stringResource(R.string.tab_settings)
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            if (selectedTab == 0) {
+                                IconButton(
+                                    onClick = { viewModel.refreshBookmarkInfo() },
+                                    enabled = !refreshingBookmarks,
+                                    modifier = Modifier.size(32.dp),
+                                ) {
+                                    if (refreshingBookmarks) {
+                                        CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                                    } else {
+                                        Icon(
+                                            Icons.Default.Refresh,
+                                            contentDescription = stringResource(R.string.refresh),
+                                            tint = adaptiveTopBarColor,
+                                        )
+                                    }
+                                }
+                            }
+                        }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = Color.Transparent,
@@ -361,13 +382,8 @@ fun ConnectionScreen(
                                             modifier = Modifier.weight(1f),
                                         )
                                         StatChip(
-                                            icon = Icons.Outlined.Folder,
-                                            text = if (bookmark.channelsOnline > 0) "${bookmark.channelsOnline}" else "--",
-                                            modifier = Modifier.weight(1f),
-                                        )
-                                        StatChip(
                                             icon = Icons.Outlined.Schedule,
-                                            text = formatUptime(bookmark.uptime),
+                                            text = formatConnectedTime(bookmark.connectedSeconds),
                                             modifier = Modifier.weight(1f),
                                         )
                                     }
@@ -623,14 +639,23 @@ private fun StatChip(
     }
 }
 
-private fun formatUptime(seconds: Long): String {
-    if (seconds <= 0) return "--"
+private fun formatConnectedTime(totalSeconds: Long): String {
+    if (totalSeconds <= 0) return "-/-/-/-/-"
+    var seconds = totalSeconds
+    val years = seconds / (365 * 86_400)
+    seconds %= (365 * 86_400)
     val days = seconds / 86_400
-    val hours = (seconds % 86_400) / 3_600
-    val minutes = (seconds % 3_600) / 60
-    return when {
-        days > 0 -> "${days}d ${hours}h"
-        hours > 0 -> "${hours}h ${minutes}m"
-        else -> "${minutes}m"
-    }
+    seconds %= 86_400
+    val hours = seconds / 3_600
+    seconds %= 3_600
+    val minutes = seconds / 60
+    seconds %= 60
+
+    val parts = mutableListOf<String>()
+    if (years > 0) parts += "${years}y"
+    if (days > 0) parts += "${days}d"
+    if (hours > 0) parts += "${hours}h"
+    if (minutes > 0) parts += "${minutes}m"
+    if (seconds > 0 || parts.isEmpty()) parts += "${seconds}s"
+    return parts.joinToString(" ")
 }
