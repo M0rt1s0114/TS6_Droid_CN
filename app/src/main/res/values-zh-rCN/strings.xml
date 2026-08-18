@@ -135,6 +135,8 @@
     <!-- Notification -->
     <string name="notif_unmute">取消静音</string>
     <string name="notif_mute">静音</string>
+    <string name="notif_speaker_unmute">开扬声器</string>
+    <string name="notif_speaker_mute">关扬声器</string>
     <string name="whisper">密聊</string>
     <string name="whisper_stop">停止密聊</string>
 
@@ -143,7 +145,6 @@
     <string name="error_address_nickname_required">地址和昵称为必填项</string>
     <string name="error_nickname_too_short">昵称至少需要3个字符</string>
     <string name="connection_failed">连接失败</string>
-    <string name="browse_failed">浏览频道失败</string>
 
     <!-- AboutScreen -->
     <string name="about_software">关于软件 / About</string>
@@ -168,4 +169,17 @@
     <!-- Connection errors -->
     <string name="error_overlay_permission_required">请授予「显示在其他应用上层」权限以使用悬浮窗。</string>
     <string name="error_service_start_failed">后台服务启动失败。</string>
+    <string name="error_server_full">服务器已满，请稍后再试。</string>
+    <string name="error_wrong_server_password">服务器密码错误，请检查后重试。</string>
+    <string name="error_banned">你已被服务器封禁，无法连接。</string>
+    <string name="error_flood_ban">连接尝试过于频繁，请稍等几分钟再试。</string>
+    <string name="error_too_many_clones">该身份的在线副本已达上限，请稍后再试。</string>
+    <string name="error_version_outdated">客户端版本过旧，服务器拒绝连接。</string>
+    <string name="error_nickname_in_use">昵称已被占用，请更换后重试。</string>
+    <string name="error_login_not_permitted">服务器不允许该身份登录（可能未在白名单内）。</string>
+    <string name="error_identity_security_level">身份安全等级不足，请提升身份等级。</string>
+    <string name="error_dns_resolution">无法解析服务器地址，请检查域名或网络。</string>
+    <string name="error_invalid_address">服务器地址格式无效。</string>
+    <string name="error_connection_timeout">连接超时，请检查地址、端口和网络。</string>
+    <string name="error_connection_refused">服务器拒绝连接，请检查端口与防火墙。</string>
 </resources>

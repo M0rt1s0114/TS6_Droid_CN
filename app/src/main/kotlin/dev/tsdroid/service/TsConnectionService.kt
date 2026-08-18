@@ -75,11 +75,25 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
+import kotlin.math.roundToInt
+
+/**
+ * Process-wide connection status published by the foreground service so the
+ * UI can observe connection changes without polling every 500ms.
+ */
+data class ServiceConnectionSnapshot(
+    val state: Int,
+    val address: String?,
+)
 
 class TsConnectionService : LifecycleService(), ViewModelStoreOwner, SavedStateRegistryOwner {
 
@@ -94,11 +108,22 @@ class TsConnectionService : LifecycleService(), ViewModelStoreOwner, SavedStateR
         private const val NOTIFICATION_ID = 1
         private const val ACTION_DISCONNECT = "com.flammedemon.ts6droid.DISCONNECT"
         private const val ACTION_TOGGLE_MUTE = "com.flammedemon.ts6droid.TOGGLE_MUTE"
+        private const val ACTION_TOGGLE_OUTPUT = "com.flammedemon.ts6droid.TOGGLE_OUTPUT"
         private const val SPEAKER_DELAY_MS = 500L
         private const val AVATAR_REFRESH_INTERVAL_MS = 30000L // 30 seconds
+        private const val SNAP_ANIMATION_MS = 220L
 
         var instance: TsConnectionService? = null
             private set
+
+        private val _connectionSnapshot = MutableStateFlow(
+            ServiceConnectionSnapshot(ConnectionState.DISCONNECTED, null),
+        )
+        val connectionSnapshot: StateFlow<ServiceConnectionSnapshot> = _connectionSnapshot.asStateFlow()
+
+        private fun publishSnapshot(state: Int, address: String?) {
+            _connectionSnapshot.value = ServiceConnectionSnapshot(state, address)
+        }
     }
 
     inner class LocalBinder : Binder() {
@@ -149,6 +174,9 @@ class TsConnectionService : LifecycleService(), ViewModelStoreOwner, SavedStateR
     private var positionBeforeExpand: Pair<Int, Int>? = null
     private var lastSavedX = 100
     private var lastSavedY = 300
+    private var hasSavedPosition = false
+    private var initialSnapPending = false
+    private var snapJob: kotlinx.coroutines.Job? = null
     
     private var isIntentionalDisconnect = false
     private var latestStartId = 0
@@ -247,6 +275,7 @@ class TsConnectionService : LifecycleService(), ViewModelStoreOwner, SavedStateR
         }.launchIn(serviceScope)
 
         tsClient.state.onEach { state ->
+            syncConnectionSnapshot()
             val connected = state == ConnectionState.CONNECTED
             overlayConnected = connected
             updateOverlayChannelName()
@@ -254,6 +283,10 @@ class TsConnectionService : LifecycleService(), ViewModelStoreOwner, SavedStateR
             // Keep the CPU awake exactly while a voice connection is active.
             if (connected) acquireWakeLock() else releaseWakeLock()
         }.launchIn(serviceScope)
+
+        // Notification quick actions must always reflect the current audio state.
+        audioBridge.isMuted.onEach { updateNotification() }.launchIn(serviceScope)
+        audioBridge.isOutputMuted.onEach { updateNotification() }.launchIn(serviceScope)
 
         tsClient.users.onEach {
             updateOverlayChannelName()
@@ -392,6 +425,10 @@ class TsConnectionService : LifecycleService(), ViewModelStoreOwner, SavedStateR
                 audioBridge.toggleMute()
                 updateNotification()
             }
+            ACTION_TOGGLE_OUTPUT -> {
+                audioBridge.toggleOutputMute()
+                updateNotification()
+            }
         }
         return START_NOT_STICKY
     }
@@ -441,8 +478,19 @@ class TsConnectionService : LifecycleService(), ViewModelStoreOwner, SavedStateR
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
 
+        val outputMuteIntent = PendingIntent.getService(
+            this, 3,
+            Intent(this, TsConnectionService::class.java).apply { action = ACTION_TOGGLE_OUTPUT },
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+
         val serverName = tsClient.serverInfo.value?.name ?: getString(R.string.connecting)
-        val muteLabel = getString(if (audioBridge.isMuted.value) R.string.notif_unmute else R.string.notif_mute)
+        val micMuted = audioBridge.isMuted.value
+        val outputMuted = audioBridge.isOutputMuted.value
+        val micLabel = getString(if (micMuted) R.string.notif_unmute else R.string.notif_mute)
+        val speakerLabel = getString(
+            if (outputMuted) R.string.notif_speaker_unmute else R.string.notif_speaker_mute,
+        )
 
         return NotificationCompat.Builder(this, TsDroidApp.CHANNEL_ID_CONNECTION)
             .setContentTitle(getString(R.string.app_name))
@@ -450,7 +498,8 @@ class TsConnectionService : LifecycleService(), ViewModelStoreOwner, SavedStateR
             .setSmallIcon(android.R.drawable.ic_btn_speak_now)
             .setContentIntent(contentIntent)
             .setOngoing(true)
-            .addAction(0, muteLabel, muteIntent)
+            .addAction(0, micLabel, muteIntent)
+            .addAction(0, speakerLabel, outputMuteIntent)
             .addAction(0, getString(R.string.disconnect), disconnectIntent)
             .build()
     }
@@ -459,6 +508,18 @@ class TsConnectionService : LifecycleService(), ViewModelStoreOwner, SavedStateR
         return !isStopping &&
             tsClient.isConnected &&
             (address == null || tsClient.serverAddress == address)
+    }
+
+    /**
+     * Pushes the native client state into the process-wide snapshot so the
+     * UI learns about connect/disconnect events instead of polling the service.
+     */
+    private fun syncConnectionSnapshot() {
+        val state = tsClient.state.value
+        publishSnapshot(
+            state = state,
+            address = tsClient.serverAddress.takeIf { state == ConnectionState.CONNECTED },
+        )
     }
 
     /** When the current connection was established, 0 if not connected. */
@@ -526,6 +587,7 @@ class TsConnectionService : LifecycleService(), ViewModelStoreOwner, SavedStateR
             tsClient.connect(address, identity, nickname, password)
             DiagLog.i(TAG, "Native connection established")
             connectionStartedAt = System.currentTimeMillis()
+            syncConnectionSnapshot()
             audioBridge.startCapture(serviceScope, noiseSuppressionEnabled)
             // Sync initial mute state with server
             if (audioBridge.isMuted.value) {
@@ -541,6 +603,7 @@ class TsConnectionService : LifecycleService(), ViewModelStoreOwner, SavedStateR
             if (e is kotlinx.coroutines.CancellationException) throw e
             DiagLog.e(TAG, "Connection error", e)
             cleanupFailedConnection()
+            syncConnectionSnapshot()
             e
         }
     }
@@ -562,6 +625,7 @@ class TsConnectionService : LifecycleService(), ViewModelStoreOwner, SavedStateR
                     DiagLog.w(TAG, "Failed to record connected time before disconnect", t)
                 }
                 tsClient.disconnect()
+                syncConnectionSnapshot()
             } finally {
                 withContext(Dispatchers.Main) {
                     finishStopOrRestart(stopStartId)
@@ -590,6 +654,7 @@ class TsConnectionService : LifecycleService(), ViewModelStoreOwner, SavedStateR
         isStopping = false
         restartRequestedWhileStopping = false
         instance = this
+        syncConnectionSnapshot()
         stopForeground(STOP_FOREGROUND_REMOVE)
     }
 
@@ -728,6 +793,7 @@ class TsConnectionService : LifecycleService(), ViewModelStoreOwner, SavedStateR
                             } catch (_: Exception) {}
                         }
                     },
+                    onDragEnd = { snapToEdge(animate = true) },
                     onSizeChange = { w, h ->
                         overlayLayoutParams?.let { layout ->
                             val metrics = resources.displayMetrics
@@ -743,6 +809,11 @@ class TsConnectionService : LifecycleService(), ViewModelStoreOwner, SavedStateR
                                 try {
                                     windowManager.updateViewLayout(this, layout)
                                 } catch (_: Exception) {}
+                            }
+
+                            if (initialSnapPending && w > 0 && h > 0) {
+                                initialSnapPending = false
+                                snapToEdge(animate = true)
                             }
                         }
                     },
@@ -760,6 +831,7 @@ class TsConnectionService : LifecycleService(), ViewModelStoreOwner, SavedStateR
 
         overlayView = composeView
         overlayLayoutParams = params
+        initialSnapPending = !hasSavedPosition
         windowManager.addView(composeView, params)
     }
 
@@ -779,8 +851,101 @@ class TsConnectionService : LifecycleService(), ViewModelStoreOwner, SavedStateR
         return tsClient.users.value.firstOrNull { it.id == userId }?.nickname
     }
 
+    /**
+     * Snaps the overlay to the nearest screen edge (left or right), keeping
+     * it clear of cutouts and system bars. Works for both the collapsed
+     * avatar bubble and the expanded panel.
+     */
+    private fun snapToEdge(animate: Boolean) {
+        val view = overlayView ?: return
+        val layout = overlayLayoutParams ?: return
+        val viewWidth = view.width
+        val viewHeight = view.height
+        if (viewWidth <= 0 || viewHeight <= 0) return
+
+        val metrics = resources.displayMetrics
+        val screenWidth = metrics.widthPixels
+        val screenHeight = metrics.heightPixels
+        val insets = currentOverlayInsets()
+        val leftInset = insets?.left ?: 0
+        val rightInset = insets?.right ?: 0
+        val topInset = insets?.top ?: 0
+        val bottomInset = insets?.bottom ?: 0
+
+        // Snap to the nearest horizontal edge. Keep the view fully visible
+        // even when the phone has a notch/punch-hole on that side.
+        val centerX = layout.x + viewWidth / 2
+        val targetX = if (centerX < screenWidth / 2) {
+            leftInset
+        } else {
+            maxOf(leftInset, screenWidth - rightInset - viewWidth)
+        }
+        val targetY = layout.y.coerceIn(
+            topInset,
+            maxOf(topInset, screenHeight - bottomInset - viewHeight),
+        )
+
+        snapJob?.cancel()
+
+        // Remember the destination immediately so a process kill or a quick
+        // collapse/expand never restores a mid-drag position.
+        lastSavedX = targetX
+        lastSavedY = targetY
+        saveCachedPosition()
+
+        if (!animate) {
+            layout.x = targetX
+            layout.y = targetY
+            try {
+                windowManager.updateViewLayout(view, layout)
+            } catch (_: Exception) {}
+            return
+        }
+
+        val startX = layout.x
+        val startY = layout.y
+        val startTime = System.nanoTime()
+        snapJob = serviceScope.launch {
+            while (isActive) {
+                val elapsed = (System.nanoTime() - startTime) / 1_000_000f
+                val t = (elapsed / SNAP_ANIMATION_MS).coerceIn(0f, 1f)
+                // easeOutCubic: fast start, gentle arrival at the edge
+                val eased = 1f - (1f - t) * (1f - t) * (1f - t)
+                layout.x = (startX + (targetX - startX) * eased).roundToInt()
+                layout.y = (startY + (targetY - startY) * eased).roundToInt()
+                try {
+                    windowManager.updateViewLayout(view, layout)
+                } catch (_: Exception) {}
+                if (t >= 1f) break
+                delay(16)
+            }
+            layout.x = targetX
+            layout.y = targetY
+            try {
+                windowManager.updateViewLayout(view, layout)
+            } catch (_: Exception) {}
+            lastSavedX = targetX
+            lastSavedY = targetY
+            saveCachedPosition()
+        }
+    }
+
+    @Suppress("DEPRECATION")
+    private fun currentOverlayInsets(): android.graphics.Rect? {
+        val insets = overlayView?.rootWindowInsets ?: return null
+        val cutout = insets.displayCutout
+        return android.graphics.Rect(
+            maxOf(insets.systemWindowInsetLeft, cutout?.safeInsetLeft ?: 0),
+            maxOf(insets.systemWindowInsetTop, cutout?.safeInsetTop ?: 0),
+            maxOf(insets.systemWindowInsetRight, cutout?.safeInsetRight ?: 0),
+            maxOf(insets.systemWindowInsetBottom, cutout?.safeInsetBottom ?: 0),
+        )
+    }
+
     fun hideFloatingWindow() {
         Log.d(TAG, "hideFloatingWindow called")
+        snapJob?.cancel()
+        snapJob = null
         overlayView?.let { view ->
             try {
                 // Save current position before removing the view
@@ -803,8 +968,10 @@ class TsConnectionService : LifecycleService(), ViewModelStoreOwner, SavedStateR
         prefs.edit().apply {
             putInt("position_x", lastSavedX)
             putInt("position_y", lastSavedY)
+            putBoolean("position_saved", true)
             apply()
         }
+        hasSavedPosition = true
         Log.d(TAG, "Saved floating window position: ($lastSavedX, $lastSavedY)")
     }
     
@@ -812,7 +979,8 @@ class TsConnectionService : LifecycleService(), ViewModelStoreOwner, SavedStateR
         val prefs = getSharedPreferences("floating_window_prefs", Context.MODE_PRIVATE)
         lastSavedX = prefs.getInt("position_x", 100)
         lastSavedY = prefs.getInt("position_y", 300)
-        Log.d(TAG, "Loaded floating window position: ($lastSavedX, $lastSavedY)")
+        hasSavedPosition = prefs.getBoolean("position_saved", false)
+        Log.d(TAG, "Loaded floating window position: ($lastSavedX, $lastSavedY), saved=$hasSavedPosition")
     }
 
     override fun onDestroy() {
@@ -832,6 +1000,7 @@ class TsConnectionService : LifecycleService(), ViewModelStoreOwner, SavedStateR
         } catch (e: Throwable) {
             DiagLog.w(TAG, "Best-effort disconnect during service destroy failed", e)
         }
+        syncConnectionSnapshot()
         audioBridge.release()
         serviceScope.cancel()
         DiagLog.i(TAG, "Foreground service destroyed")
@@ -848,6 +1017,7 @@ class TsConnectionService : LifecycleService(), ViewModelStoreOwner, SavedStateR
         isExpanded: Boolean,
         onToggleExpand: () -> Unit,
         onDrag: (Float, Float) -> Unit,
+        onDragEnd: () -> Unit,
         onSizeChange: (Int, Int) -> Unit,
         channels: List<Channel>,
         users: List<User>,
@@ -913,7 +1083,9 @@ class TsConnectionService : LifecycleService(), ViewModelStoreOwner, SavedStateR
                     modifier = Modifier
                         .size(40.dp) // Make smaller
                         .pointerInput(Unit) {
-                            detectDragGestures { change, dragAmount ->
+                            detectDragGestures(
+                                onDragEnd = { onDragEnd() },
+                            ) { change, dragAmount ->
                                 change.consume()
                                 onDrag(dragAmount.x, dragAmount.y)
                             }
@@ -972,7 +1144,9 @@ class TsConnectionService : LifecycleService(), ViewModelStoreOwner, SavedStateR
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .pointerInput(Unit) {
-                                    detectDragGestures { change, dragAmount ->
+                                    detectDragGestures(
+                                        onDragEnd = { onDragEnd() },
+                                    ) { change, dragAmount ->
                                         change.consume()
                                         onDrag(dragAmount.x, dragAmount.y)
                                     }

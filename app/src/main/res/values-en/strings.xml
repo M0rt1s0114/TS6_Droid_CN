@@ -92,6 +92,8 @@
 
     <!-- Notification -->
     <string name="notif_unmute">Unmute</string>
+    <string name="notif_speaker_unmute">Unmute speaker</string>
+    <string name="notif_speaker_mute">Mute speaker</string>
     <string name="whisper">Whisper</string>
     <string name="whisper_stop">Stop whisper</string>
 
@@ -100,7 +102,6 @@
     <string name="error_address_nickname_required">Address and nickname are required</string>
     <string name="error_nickname_too_short">Nickname must be at least 3 characters long</string>
     <string name="connection_failed">Connection failed</string>
-    <string name="browse_failed">Failed to browse channels</string>
 
     <!-- AboutScreen -->
     <string name="about_software">About / 关于软件</string>
@@ -127,6 +128,19 @@
     <!-- Connection errors -->
     <string name="error_overlay_permission_required">Please grant the \"Display over other apps\" permission to use the floating window.</string>
     <string name="error_service_start_failed">Failed to start background service.</string>
+    <string name="error_server_full">The server is full, please try again later.</string>
+    <string name="error_wrong_server_password">Wrong server password, please check and retry.</string>
+    <string name="error_banned">You are banned from this server.</string>
+    <string name="error_flood_ban">Too many connection attempts, please wait a few minutes.</string>
+    <string name="error_too_many_clones">Too many copies of this identity are already connected.</string>
+    <string name="error_version_outdated">Client version too old, connection refused.</string>
+    <string name="error_nickname_in_use">Nickname is already in use.</string>
+    <string name="error_login_not_permitted">The server does not permit this identity to log in.</string>
+    <string name="error_identity_security_level">Identity security level is too low.</string>
+    <string name="error_dns_resolution">Could not resolve the server address.</string>
+    <string name="error_invalid_address">Invalid server address format.</string>
+    <string name="error_connection_timeout">Connection timed out, check the address, port and network.</string>
+    <string name="error_connection_refused">The server refused the connection, check the port and firewall.</string>
 
     <!-- Missing translations backfill -->
     <string name="app_name">TS6 Droid</string>

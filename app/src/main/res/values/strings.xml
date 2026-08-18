@@ -135,6 +135,8 @@
     <!-- Notification -->
     <string name="notif_unmute">Réactiver</string>
     <string name="notif_mute">Mute</string>
+    <string name="notif_speaker_unmute">Réactiver HP</string>
+    <string name="notif_speaker_mute">Couper HP</string>
     <string name="whisper">Chuchoter</string>
     <string name="whisper_stop">Arrêter le chuchotement</string>
 
@@ -143,7 +145,6 @@
     <string name="error_address_nickname_required">L\'adresse et le pseudo sont requis</string>
     <string name="error_nickname_too_short">Le pseudo doit contenir au moins 3 caractères</string>
     <string name="connection_failed">Échec de la connexion</string>
-    <string name="browse_failed">Échec du parcours des channels</string>
 
     <!-- AboutScreen -->
     <string name="about_software">À propos / About</string>
@@ -169,4 +170,17 @@
     <!-- Connection errors -->
     <string name="error_overlay_permission_required">Veuillez autoriser l\'affichage au-dessus des autres applications pour utiliser la fenêtre flottante.</string>
     <string name="error_service_start_failed">Échec du démarrage du service en arrière-plan.</string>
+    <string name="error_server_full">Le serveur est plein, réessayez plus tard.</string>
+    <string name="error_wrong_server_password">Mot de passe du serveur incorrect.</string>
+    <string name="error_banned">Vous êtes banni de ce serveur.</string>
+    <string name="error_flood_ban">Tentatives de connexion trop fréquentes, patientez quelques minutes.</string>
+    <string name="error_too_many_clones">Trop de copies de cette identité sont déjà connectées.</string>
+    <string name="error_version_outdated">Version du client trop ancienne, connexion refusée.</string>
+    <string name="error_nickname_in_use">Ce pseudo est déjà utilisé.</string>
+    <string name="error_login_not_permitted">Le serveur n\'autorise pas cette identité (liste blanche).</string>
+    <string name="error_identity_security_level">Niveau de sécurité de l\'identité insuffisant.</string>
+    <string name="error_dns_resolution">Impossible de résoudre l\'adresse du serveur.</string>
+    <string name="error_invalid_address">Format de l\'adresse du serveur invalide.</string>
+    <string name="error_connection_timeout">Connexion expirée, vérifiez l\'adresse, le port et le réseau.</string>
+    <string name="error_connection_refused">Le serveur a refusé la connexion, vérifiez le port et le pare-feu.</string>
 </resources>

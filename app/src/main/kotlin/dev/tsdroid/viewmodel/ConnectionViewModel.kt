@@ -10,6 +10,7 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import dev.tsdroid.bridge.ConnectionErrorMapper
 import dev.tsdroid.bridge.MAX_NICKNAME_COLLISION_ATTEMPTS
 import dev.tsdroid.bridge.hasNicknameCollision
 import dev.tsdroid.bridge.nicknameWithCollisionSuffix
@@ -17,6 +18,7 @@ import dev.tsdroid.han.R
 import dev.tsdroid.data.BookmarkStore
 import dev.tsdroid.data.ServerBookmark
 import dev.tsdroid.data.SettingsStore
+import dev.tsdroid.data.IdentityStore
 import dev.tsdroid.service.TsConnectionService
 import dev.tslib.Channel
 import dev.tslib.ChannelTree
@@ -46,6 +48,7 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
 
     private val bookmarkStore = BookmarkStore(application)
     private val settingsStore = SettingsStore(application)
+    private val identityStore = IdentityStore(application)
 
     val bookmarks: StateFlow<List<ServerBookmark>> = bookmarkStore.bookmarks
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
@@ -88,25 +91,12 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
 
         // Keep the home cards in sync with the foreground service, including
         // disconnects triggered from the floating window or the notification.
+        // The service publishes a StateFlow snapshot, so no polling is needed.
         viewModelScope.launch {
-            while (true) {
-                val service = TsConnectionService.instance
-                if (service != null) {
-                    val connected = service.hasActiveConnection()
-                    if (connected) {
-                        _connectionState.value = ConnectionState.CONNECTED
-                        _activeAddress.value = service.tsClient.serverAddress
-                    } else if (_connectionState.value == ConnectionState.CONNECTED || _activeAddress.value != null) {
-                        _connectionState.value = ConnectionState.DISCONNECTED
-                        _activeAddress.value = null
-                    }
-                } else if (_connectionState.value == ConnectionState.CONNECTED || _activeAddress.value != null) {
-                    // The service instance is gone (destroyed after disconnect
-                    // or killed by the system): clear stale green cards too.
-                    _connectionState.value = ConnectionState.DISCONNECTED
-                    _activeAddress.value = null
-                }
-                delay(500)
+            TsConnectionService.connectionSnapshot.collect { snapshot ->
+                Log.d(TAG, "Service snapshot: state=${snapshot.state}, address=${snapshot.address}")
+                _connectionState.value = snapshot.state
+                _activeAddress.value = snapshot.address
             }
         }
     }
@@ -243,7 +233,7 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
             }
 
             try {
-                val identity = getOrCreateIdentity()
+                val identity = identityStore.getOrCreateIdentity()
                 val pw = password.value.trim().takeIf { it.isNotEmpty() }
                 var connectionFailure = service.connect(addr, identity, nick, pw)
                 if (connectionFailure?.isTooManyClonesFailure() == true) {
@@ -258,14 +248,17 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
                 } else {
                     _connectionState.value = ConnectionState.DISCONNECTED
                     _activeAddress.value = null
-                    _error.value = connectionFailure.message
-                        ?: context.getString(R.string.connection_failed)
+                    val localized = ConnectionErrorMapper.localizedMessage(context, connectionFailure)
+                    Log.w(TAG, "Connection to $addr failed: $localized", connectionFailure)
+                    _error.value = localized
                 }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 _connectionState.value = ConnectionState.DISCONNECTED
-                _error.value = e.message ?: context.getString(R.string.connection_failed)
+                val localized = ConnectionErrorMapper.localizedMessage(context, e)
+                Log.w(TAG, "Connection to $addr failed with exception: $localized", e)
+                _error.value = localized
             }
         }
     }
@@ -392,7 +385,7 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
         viewModelScope.launch {
             try {
                 val channels = withContext(Dispatchers.IO) {
-                    val identity = getOrCreateIdentity()
+                    val identity = identityStore.getOrCreateIdentity()
                     val pw = password.value.trim().takeIf { it.isNotEmpty() }
                     var lastFailure: Throwable? = null
 
@@ -445,7 +438,10 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
                 browsedChannels.value = channels
                 showChannelPicker.value = true
             } catch (e: Exception) {
-                _error.value = e.message ?: getApplication<Application>().getString(R.string.browse_failed)
+                _error.value = ConnectionErrorMapper.localizedMessage(
+                    getApplication<Application>(),
+                    e,
+                )
             } finally {
                 isBrowsing.value = false
             }
@@ -483,18 +479,6 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
         try {
             client.close()
         } catch (_: Throwable) {
-        }
-    }
-
-    private fun getOrCreateIdentity(): Identity {
-        val context = getApplication<Application>()
-        val identityFile = File(context.filesDir, "identity.ini")
-        return if (identityFile.exists()) {
-            Identity.load(identityFile.absolutePath)
-        } else {
-            val identity = Identity()
-            identity.save(identityFile.absolutePath)
-            identity
         }
     }
 
