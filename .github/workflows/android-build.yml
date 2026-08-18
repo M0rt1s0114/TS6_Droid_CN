@@ -15,13 +15,14 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7.0.1 # Node24，规避 Node20 弃用问题
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5.7.0 # Node24，规避 Node20 弃用问题
         with:
           distribution: temurin
           java-version: 17
+          cache: gradle
 
       - name: Ensure Gradle wrapper is executable
         run: chmod +x ./gradlew
@@ -34,18 +35,20 @@ jobs:
 
       - name: Upload Lint Report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7.0.1 # Node24，规避 Node20 弃用问题
         with:
           name: TS6-Han-Lint-Report
           path: app/build/reports/
+          if-no-files-found: warn
 
       # 💡 核心：利用 -x 参数强制跳过原作者的 Rust 编译任务
-      # Gradle 会聪明地直接把你刚刚上传的 jniLibs 里的现成 .so 库打包打包带走
+      # Gradle 会直接使用仓库内已提交的 jniLibs 现成 .so 库打包
       - name: Build Debug APK
         run: ./gradlew --no-daemon assembleDebug -x buildRustLibs
 
       - name: Upload Finished APK
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7.0.1 # Node24，规避 Node20 弃用问题
         with:
           name: TS6-Han-Android-App
           path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
