@@ -46,6 +46,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.app.NotificationCompat
+import androidx.core.view.doOnLayout
 import androidx.lifecycle.*
 import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryController
@@ -174,8 +175,6 @@ class TsConnectionService : LifecycleService(), ViewModelStoreOwner, SavedStateR
     private var positionBeforeExpand: Pair<Int, Int>? = null
     private var lastSavedX = 100
     private var lastSavedY = 300
-    private var hasSavedPosition = false
-    private var initialSnapPending = false
     private var snapJob: kotlinx.coroutines.Job? = null
     
     private var isIntentionalDisconnect = false
@@ -810,11 +809,6 @@ class TsConnectionService : LifecycleService(), ViewModelStoreOwner, SavedStateR
                                     windowManager.updateViewLayout(this, layout)
                                 } catch (_: Exception) {}
                             }
-
-                            if (initialSnapPending && w > 0 && h > 0) {
-                                initialSnapPending = false
-                                snapToEdge(animate = true)
-                            }
                         }
                     },
                     channels = channels,
@@ -831,8 +825,11 @@ class TsConnectionService : LifecycleService(), ViewModelStoreOwner, SavedStateR
 
         overlayView = composeView
         overlayLayoutParams = params
-        initialSnapPending = !hasSavedPosition
         windowManager.addView(composeView, params)
+
+        // Snap as soon as the overlay has a measured size, so it always
+        // docks to the nearest edge without requiring a manual drag.
+        composeView.doOnLayout { snapToEdge(animate = true) }
     }
 
     private fun updateOverlayChannelName() {
@@ -968,10 +965,8 @@ class TsConnectionService : LifecycleService(), ViewModelStoreOwner, SavedStateR
         prefs.edit().apply {
             putInt("position_x", lastSavedX)
             putInt("position_y", lastSavedY)
-            putBoolean("position_saved", true)
             apply()
         }
-        hasSavedPosition = true
         Log.d(TAG, "Saved floating window position: ($lastSavedX, $lastSavedY)")
     }
     
@@ -979,8 +974,7 @@ class TsConnectionService : LifecycleService(), ViewModelStoreOwner, SavedStateR
         val prefs = getSharedPreferences("floating_window_prefs", Context.MODE_PRIVATE)
         lastSavedX = prefs.getInt("position_x", 100)
         lastSavedY = prefs.getInt("position_y", 300)
-        hasSavedPosition = prefs.getBoolean("position_saved", false)
-        Log.d(TAG, "Loaded floating window position: ($lastSavedX, $lastSavedY), saved=$hasSavedPosition")
+        Log.d(TAG, "Loaded floating window position: ($lastSavedX, $lastSavedY)")
     }
 
     override fun onDestroy() {
