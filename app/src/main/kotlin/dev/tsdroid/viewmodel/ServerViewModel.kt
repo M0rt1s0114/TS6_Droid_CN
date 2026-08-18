@@ -140,7 +140,11 @@ class ServerViewModel(application: Application) : AndroidViewModel(application) 
     private val _isOutputMuted = MutableStateFlow(false)
     val isOutputMuted: StateFlow<Boolean> = _isOutputMuted.asStateFlow()
 
-    val isLocalVoiceActive: StateFlow<Boolean> get() = audioBridge?.isLocalVoiceActive ?: MutableStateFlow(false)
+    // Stable fallback flow so collectors always see the same StateFlow instance
+    // before bindToService() replaces it with the real audio bridge flow.
+    private val fallbackLocalVoiceActive = MutableStateFlow(false)
+    val isLocalVoiceActive: StateFlow<Boolean>
+        get() = audioBridge?.isLocalVoiceActive ?: fallbackLocalVoiceActive
 
     private val _connectionState = MutableStateFlow(ConnectionState.CONNECTED)
     val connectionState: StateFlow<Int> = _connectionState.asStateFlow()

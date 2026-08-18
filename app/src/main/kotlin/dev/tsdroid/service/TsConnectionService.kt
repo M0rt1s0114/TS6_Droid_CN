@@ -901,7 +901,9 @@ class TsConnectionService : LifecycleService(), ViewModelStoreOwner, SavedStateR
                                 .padding(vertical = 8.dp)
                         ) {
                             items(activeUsers) { user ->
-                                val isSpeaking = if (user.id == myId) (isLocalVoiceActive || overlayActiveSpeakerId == myId) else user.nickname == activeSpeakerName
+                                // Match speakers by ID: nicknames are not unique, so
+                                // comparing names could highlight the wrong user.
+                                val isSpeaking = if (user.id == myId) (isLocalVoiceActive || overlayActiveSpeakerId == myId) else user.id == overlayActiveSpeakerId
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
