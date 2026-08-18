@@ -77,6 +77,25 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
                 loadBookmarkIcons(list)
             }
         }
+
+        // Keep the home cards in sync with the foreground service, including
+        // disconnects triggered from the floating window or the notification.
+        viewModelScope.launch {
+            while (true) {
+                val service = TsConnectionService.instance
+                if (service != null) {
+                    val connected = service.hasActiveConnection()
+                    if (connected) {
+                        _connectionState.value = ConnectionState.CONNECTED
+                        _activeAddress.value = service.tsClient.serverAddress
+                    } else if (_connectionState.value == ConnectionState.CONNECTED || _activeAddress.value != null) {
+                        _connectionState.value = ConnectionState.DISCONNECTED
+                        _activeAddress.value = null
+                    }
+                }
+                delay(1_000)
+            }
+        }
     }
 
     private fun loadBookmarkIcons(bookmarks: List<ServerBookmark>) {
