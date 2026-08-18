@@ -18,6 +18,13 @@ class TsDroidApp : Application() {
 
         init {
             System.loadLibrary("tslib_jni")
+            try {
+                // Optional AI-denoiser library; older builds or unsupported
+                // ABIs simply keep using the native NoiseSuppressor fallback.
+                System.loadLibrary("tslib_denoiser")
+            } catch (e: UnsatisfiedLinkError) {
+                Log.e("TsDroidApp", "tslib_denoiser unavailable; AI denoising disabled", e)
+            }
         }
     }
 

@@ -13,6 +13,7 @@ import android.media.audiofx.NoiseSuppressor
 import android.util.Log
 import androidx.core.content.ContextCompat
 import dev.tslib.AudioConfig
+import dev.tslib.AudioDenoiser
 import dev.tslib.OpusCodec
 import dev.tsdroid.diag.DiagLog
 import kotlinx.coroutines.CoroutineScope
@@ -56,6 +57,13 @@ class AudioBridge(
     private var audioRecord: AudioRecord? = null
     private var audioTrack: AudioTrack? = null
     private var noiseSuppressor: NoiseSuppressor? = null
+
+    // Rust sherpa-onnx DPDFNet denoiser. Volatile + single-writer (prep job)
+    // keeps the create/process handoff safe without locking the audio loop.
+    @Volatile
+    private var aiDenoiser: AudioDenoiser? = null
+    @Volatile
+    private var aiDenoiserPreparing = false
 
     private var captureJob: Job? = null
     private var playbackJob: Job? = null
@@ -142,6 +150,28 @@ class AudioBridge(
         audioRecord = record
         _isCapturing.value = true
         DiagLog.i(TAG, "Microphone capture started (source=VOICE_COMMUNICATION, noiseSuppression=$noiseSuppressionEnabled)")
+
+        // Prepare the AI denoiser off the audio path. Until it is ready the
+        // capture loop simply sends raw PCM (fail-open behavior).
+        if (noiseSuppressionEnabled && aiDenoiser == null && !aiDenoiserPreparing) {
+            aiDenoiserPreparing = true
+            scope.launch(Dispatchers.IO) {
+                try {
+                    val modelPath = DenoiserModelManager.ensureModel(context)
+                    if (modelPath != null) {
+                        val created = AudioDenoiser(modelPath, true)
+                        aiDenoiser = created
+                        DiagLog.i(TAG, "AI denoiser ready (sherpa-onnx DPDFNet)")
+                    } else {
+                        DiagLog.w(TAG, "AI denoiser unavailable; using native NoiseSuppressor fallback")
+                    }
+                } catch (t: Throwable) {
+                    DiagLog.e(TAG, "Failed to initialize AI denoiser; falling back", t)
+                } finally {
+                    aiDenoiserPreparing = false
+                }
+            }
+        }
         noiseSuppressor?.release()
         noiseSuppressor = null
         if (noiseSuppressionEnabled && NoiseSuppressor.isAvailable()) {
@@ -185,8 +215,14 @@ class AudioBridge(
                     _isLocalVoiceActive.value = isVoiceActive
                     
                     val pcmBytes = shortsToBytes(buffer)
+                    val denoisedBytes = try {
+                        aiDenoiser?.process(pcmBytes) ?: pcmBytes
+                    } catch (t: Throwable) {
+                        DiagLog.e(TAG, "AI denoiser process failed; bypassing this frame", t)
+                        pcmBytes
+                    }
                     try {
-                        val encoded = codec.encode(pcmBytes)
+                        val encoded = codec.encode(denoisedBytes)
                         tsClient.sendAudio(encoded, CODEC_OPUS_VOICE)
                     } catch (_: Exception) {}
                 } else {
@@ -367,6 +403,12 @@ class AudioBridge(
         audioTrack = null
         noiseSuppressor?.release()
         noiseSuppressor = null
+        try {
+            aiDenoiser?.close()
+        } catch (t: Throwable) {
+            DiagLog.w(TAG, "Failed to close AI denoiser", t)
+        }
+        aiDenoiser = null
         encoder?.close()
         encoder = null
         // Close per-user decoders
