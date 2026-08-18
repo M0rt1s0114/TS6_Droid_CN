@@ -197,8 +197,15 @@ fun ServerScreen(
         Scaffold(
             containerColor = Color.Transparent,
         topBar = {
-            val adaptiveTopBarColor = AnimeWallpaperState.recommendedContentColor.value
-                ?: MaterialTheme.colorScheme.onSurface
+            // Only trust wallpaper-derived colors when the wallpaper is
+            // actually visible; otherwise fall back to the theme color
+            // (fixes black text/icons on the AMOLED black background).
+            val adaptiveTopBarColor = if (animeBackground) {
+                AnimeWallpaperState.recommendedContentColor.value
+                    ?: MaterialTheme.colorScheme.onSurface
+            } else {
+                MaterialTheme.colorScheme.onSurface
+            }
             TopAppBar(
                 title = { Text(serverInfo?.name ?: stringResource(R.string.server)) },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -210,9 +217,6 @@ fun ServerScreen(
                 actions = {
                     IconButton(onClick = { viewModel.toggleFileManager() }) {
                         Icon(Icons.Default.Folder, contentDescription = stringResource(R.string.file_manager))
-                    }
-                    IconButton(onClick = { viewModel.disconnect() }) {
-                        Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = stringResource(R.string.disconnect))
                     }
                 },
             )
@@ -235,135 +239,156 @@ fun ServerScreen(
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                    // Chat FAB with badge
-                    Box {
-                        IconButton(onClick = {
-                            chatOpen = !chatOpen
-                        }) {
-                            Icon(
-                                Icons.Default.ChatBubble,
-                                contentDescription = stringResource(R.string.chat),
-                                tint = MaterialTheme.colorScheme.tertiary,
-                            )
-                        }
-                        if (totalUnread > 0) {
-                            Badge(
-                                modifier = Modifier
-                                    .align(Alignment.TopEnd)
-                                    .offset(x = (-4).dp, y = 4.dp),
-                            ) {
-                                Text("$totalUnread")
-                            }
-                        }
-                    }
-
-                    // Center button: PTT or Mute depending on MODE (not mute state)
-                    if (isPttMode) {
-                        // PTT mode: hold to talk
-                        var isPressed by remember { mutableStateOf(false) }
-                        val pttBackground = if (isPressed) MaterialTheme.colorScheme.primaryContainer
-                            else MaterialTheme.colorScheme.surfaceVariant
-                        val pttTint = if (isPressed) MaterialTheme.colorScheme.onPrimaryContainer
-                            else MaterialTheme.colorScheme.onSurfaceVariant
-                        Box(
-                            modifier = Modifier
-                                .size(72.dp)
-                                .clip(CircleShape)
-                                .background(pttBackground)
-                                .pointerInput(Unit) {
-                                    detectTapGestures(
-                                        onPress = {
-                                            isPressed = true
-                                            viewModel.setPushToTalk(true)
-                                            tryAwaitRelease()
-                                            viewModel.setPushToTalk(false)
-                                            isPressed = false
+                        // 1. Push to talk / muted state
+                        if (isPttMode) {
+                            if (isOutputMuted) {
+                                // Deafen implies mic mute: PTT becomes inert and shows the muted label.
+                                Box(
+                                    modifier = Modifier
+                                        .size(72.dp)
+                                        .clip(CircleShape)
+                                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Icon(
+                                            Icons.Default.MicOff,
+                                            contentDescription = stringResource(R.string.input_muted_state),
+                                            modifier = Modifier.size(28.dp),
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                        Text(
+                                            stringResource(R.string.input_muted_state),
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                    }
+                                }
+                            } else {
+                                // PTT mode: hold to talk
+                                var isPressed by remember { mutableStateOf(false) }
+                                val pttBackground = if (isPressed) MaterialTheme.colorScheme.primaryContainer
+                                    else MaterialTheme.colorScheme.surfaceVariant
+                                val pttTint = if (isPressed) MaterialTheme.colorScheme.onPrimaryContainer
+                                    else MaterialTheme.colorScheme.onSurfaceVariant
+                                Box(
+                                    modifier = Modifier
+                                        .size(72.dp)
+                                        .clip(CircleShape)
+                                        .background(pttBackground)
+                                        .pointerInput(Unit) {
+                                            detectTapGestures(
+                                                onPress = {
+                                                    isPressed = true
+                                                    viewModel.setPushToTalk(true)
+                                                    tryAwaitRelease()
+                                                    viewModel.setPushToTalk(false)
+                                                    isPressed = false
+                                                },
+                                            )
                                         },
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Icon(
+                                            Icons.Default.Mic,
+                                            contentDescription = stringResource(R.string.push_to_talk),
+                                            modifier = Modifier.size(28.dp),
+                                            tint = pttTint,
+                                        )
+                                        Text(
+                                            stringResource(R.string.ptt),
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = pttTint,
+                                        )
+                                    }
+                                }
+                            }
+                        } else {
+                            // Voice activity mode: click to go back to PTT
+                            Box(
+                                modifier = Modifier
+                                    .size(72.dp)
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.errorContainer)
+                                    .clickable { viewModel.toggleVoiceMode() },
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Icon(
+                                        Icons.Default.MicOff,
+                                        contentDescription = stringResource(R.string.mute_mic),
+                                        modifier = Modifier.size(28.dp),
+                                        tint = MaterialTheme.colorScheme.onErrorContainer,
                                     )
-                                },
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text(
+                                        stringResource(R.string.mute),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onErrorContainer,
+                                    )
+                                }
+                            }
+                        }
+
+                        // 2. Mic control (talk mode toggle)
+                        IconButton(onClick = { viewModel.toggleVoiceMode() }) {
+                            Icon(
+                                if (isPttMode) Icons.Default.MicOff else Icons.Default.Mic,
+                                contentDescription = stringResource(if (isPttMode) R.string.unmute_mic else R.string.mute_mic),
+                                tint = if (isPttMode) MaterialTheme.colorScheme.error
+                                else MaterialTheme.colorScheme.primary,
+                            )
+                        }
+
+                        // 3. Speaker control
+                        IconButton(onClick = { viewModel.toggleOutputMute() }) {
+                            Icon(
+                                if (isOutputMuted) Icons.Default.HeadsetOff else Icons.Default.Headset,
+                                contentDescription = stringResource(if (isOutputMuted) R.string.notif_unmute else R.string.notif_mute),
+                                tint = if (isOutputMuted) MaterialTheme.colorScheme.error
+                                else MaterialTheme.colorScheme.primary,
+                            )
+                        }
+
+                        // 4. Server messages with unread badge
+                        Box {
+                            IconButton(onClick = { chatOpen = !chatOpen }) {
                                 Icon(
-                                    Icons.Default.Mic,
-                                    contentDescription = stringResource(R.string.push_to_talk),
-                                    modifier = Modifier.size(28.dp),
-                                    tint = pttTint,
+                                    Icons.Default.ChatBubble,
+                                    contentDescription = stringResource(R.string.chat),
+                                    tint = MaterialTheme.colorScheme.tertiary,
                                 )
-                                Text(
-                                    stringResource(R.string.ptt),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = pttTint,
+                            }
+                            if (totalUnread > 0) {
+                                Badge(
+                                    modifier = Modifier
+                                        .align(Alignment.TopEnd)
+                                        .offset(x = (-4).dp, y = 4.dp),
+                                ) {
+                                    Text("$totalUnread")
+                                }
+                            }
+                        }
+
+                        // Whisper indicator, shown only while a whisper is active
+                        if (WhisperManager.isWhisperActive && whisperFirstTargetName != null) {
+                            IconButton(onClick = { viewModel.toggleWhisper(WhisperManager.whisperTargets.first()) }) {
+                                Icon(
+                                    Icons.Default.Forum,
+                                    contentDescription = stringResource(R.string.whisper_stop),
+                                    tint = MaterialTheme.colorScheme.tertiary,
                                 )
                             }
                         }
-                    } else {
-                        // Voice activity mode: click to mute and go back to PTT
-                        Box(
-                            modifier = Modifier
-                                .size(72.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.errorContainer)
-                                .clickable { viewModel.toggleVoiceMode() },
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Icon(
-                                    Icons.Default.MicOff,
-                                    contentDescription = stringResource(R.string.mute_mic),
-                                    modifier = Modifier.size(28.dp),
-                                    tint = MaterialTheme.colorScheme.onErrorContainer,
-                                )
-                                Text(
-                                    stringResource(R.string.mute),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onErrorContainer,
-                                )
-                            }
-                        }
-                    }
 
-                    // Toggle voice mode (PTT 鈫?Voice Activity)
-                    IconButton(onClick = { viewModel.toggleVoiceMode() }) {
-                        Icon(
-                            if (isPttMode) Icons.Default.MicOff else Icons.Default.Mic,
-                            contentDescription = stringResource(if (isPttMode) R.string.unmute_mic else R.string.mute_mic),
-                            tint = if (isPttMode) MaterialTheme.colorScheme.error
-                            else MaterialTheme.colorScheme.primary,
-                        )
-                    }
-
-                    // Whisper indicator — shows active state, click to stop
-                    if (WhisperManager.isWhisperActive && whisperFirstTargetName != null) {
-                        IconButton(onClick = { viewModel.toggleWhisper(WhisperManager.whisperTargets.first()) }) {
+                        // 5. Exit server
+                        IconButton(onClick = { viewModel.disconnect() }) {
                             Icon(
-                                Icons.Default.Forum,
-                                contentDescription = stringResource(R.string.whisper_stop),
-                                tint = MaterialTheme.colorScheme.tertiary,
+                                Icons.AutoMirrored.Filled.ExitToApp,
+                                contentDescription = stringResource(R.string.disconnect),
+                                tint = MaterialTheme.colorScheme.error,
                             )
                         }
-                    } else {
-                        IconButton(
-                            onClick = {},
-                            enabled = false,
-                        ) {
-                            Icon(
-                                Icons.Default.Forum,
-                                contentDescription = stringResource(R.string.whisper),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
-                            )
-                        }
-                    }
-
-                    // Toggle Output Mute (Deafen)
-                    IconButton(onClick = { viewModel.toggleOutputMute() }) {
-                        Icon(
-                            if (isOutputMuted) Icons.Default.HeadsetOff else Icons.Default.Headset,
-                            contentDescription = stringResource(if (isOutputMuted) R.string.notif_unmute else R.string.notif_mute),
-                            tint = if (isOutputMuted) MaterialTheme.colorScheme.error
-                            else MaterialTheme.colorScheme.primary,
-                        )
-                    }
                     }
                 }
             }

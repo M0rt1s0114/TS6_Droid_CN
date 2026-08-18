@@ -78,8 +78,12 @@ fun AboutScreen(onBack: () -> Unit) {
     Box(modifier = Modifier.fillMaxSize()) {
         AnimeBackground(enabled = animeBackground)
 
-        val adaptiveContentColor = AnimeWallpaperState.recommendedContentColor.value
-            ?: MaterialTheme.colorScheme.onSurface
+        val adaptiveContentColor = if (animeBackground) {
+            AnimeWallpaperState.recommendedContentColor.value
+                ?: MaterialTheme.colorScheme.onSurface
+        } else {
+            MaterialTheme.colorScheme.onSurface
+        }
 
         CompositionLocalProvider(LocalContentColor provides adaptiveContentColor) {
             Column(

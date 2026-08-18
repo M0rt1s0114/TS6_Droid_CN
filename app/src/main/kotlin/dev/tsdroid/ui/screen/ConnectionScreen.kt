@@ -150,8 +150,12 @@ fun ConnectionScreen(
         Scaffold(
             containerColor = Color.Transparent,
             topBar = {
-                val adaptiveTopBarColor = AnimeWallpaperState.recommendedContentColor.value
-                    ?: MaterialTheme.colorScheme.onSurface
+                val adaptiveTopBarColor = if (animeBackground) {
+                    AnimeWallpaperState.recommendedContentColor.value
+                        ?: MaterialTheme.colorScheme.onSurface
+                } else {
+                    MaterialTheme.colorScheme.onSurface
+                }
                 TopAppBar(
                     title = {
                         Text(
