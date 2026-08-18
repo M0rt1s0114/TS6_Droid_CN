@@ -46,6 +46,7 @@
     <string name="chat">Chat</string>
     <string name="push_to_talk">Appuyer pour parler</string>
     <string name="ptt">PTT</string>
+    <string name="ptt_active">En train de parler</string>
     <string name="mute_mic">Couper le micro</string>
     <string name="mute">Mute</string>
     <string name="input_muted_state">Micro coupé</string>

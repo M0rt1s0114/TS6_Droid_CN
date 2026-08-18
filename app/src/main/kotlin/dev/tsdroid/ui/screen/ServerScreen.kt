@@ -308,6 +308,9 @@ fun ServerScreen(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         // 1. Talk button: status display or hold-to-talk
+                        // Track press independently so recomposition (mic state
+                        // flips while held) cannot destroy the active gesture.
+                        var pttPressed by remember { mutableStateOf(false) }
                         when {
                             isOutputMuted -> {
                                 // Cannot listen => cannot talk.
@@ -334,12 +337,11 @@ fun ServerScreen(
                                 }
                             }
 
-                            isMicMuted -> {
+                            isMicMuted || pttPressed -> {
                                 // Mic muted + speaker on = hold-to-talk.
-                                var isPressed by remember { mutableStateOf(false) }
-                                val pttBackground = if (isPressed) MaterialTheme.colorScheme.primaryContainer
+                                val pttBackground = if (pttPressed) MaterialTheme.colorScheme.primaryContainer
                                     else MaterialTheme.colorScheme.surfaceVariant
-                                val pttTint = if (isPressed) MaterialTheme.colorScheme.onPrimaryContainer
+                                val pttTint = if (pttPressed) MaterialTheme.colorScheme.onPrimaryContainer
                                     else MaterialTheme.colorScheme.onSurfaceVariant
                                 Box(
                                     modifier = Modifier
@@ -349,11 +351,14 @@ fun ServerScreen(
                                         .pointerInput(Unit) {
                                             detectTapGestures(
                                                 onPress = {
-                                                    isPressed = true
+                                                    pttPressed = true
                                                     viewModel.setPushToTalk(true)
-                                                    tryAwaitRelease()
-                                                    viewModel.setPushToTalk(false)
-                                                    isPressed = false
+                                                    try {
+                                                        tryAwaitRelease()
+                                                    } finally {
+                                                        viewModel.setPushToTalk(false)
+                                                        pttPressed = false
+                                                    }
                                                 },
                                             )
                                         },
@@ -367,7 +372,7 @@ fun ServerScreen(
                                             tint = pttTint,
                                         )
                                         Text(
-                                            stringResource(R.string.ptt),
+                                            text = if (pttPressed) stringResource(R.string.ptt_active) else stringResource(R.string.ptt),
                                             style = MaterialTheme.typography.labelSmall,
                                             color = pttTint,
                                         )

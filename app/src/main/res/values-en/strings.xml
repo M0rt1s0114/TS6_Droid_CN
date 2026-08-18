@@ -140,6 +140,7 @@
     <string name="enable_floating_window">Enable floating window</string>
     <string name="chat">Chat</string>
     <string name="ptt">PTT</string>
+    <string name="ptt_active">Talking</string>
     <string name="mute">Mute</string>
     <string name="user_fallback">User #%1$d</string>
     <string name="image">Image</string>
