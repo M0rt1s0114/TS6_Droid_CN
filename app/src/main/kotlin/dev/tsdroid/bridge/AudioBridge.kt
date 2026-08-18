@@ -309,10 +309,12 @@ class AudioBridge(
         if (_isOutputMuted.value) return // Global output mute — discard incoming audio
         val queue = userQueues.getOrPut(userId) { ArrayDeque() }
         synchronized(queue) {
-            if (queue.size < MAX_QUEUE_FRAMES) {
-                queue.addLast(opusData)
+            // Drop the oldest frames when the queue is full: real-time voice
+            // benefits from fresh audio more than from draining a backlog.
+            while (queue.size >= MAX_QUEUE_FRAMES) {
+                queue.pollFirst()
             }
-            // Drop oldest if queue is full (prevents unbounded lag)
+            queue.addLast(opusData)
         }
     }
 
@@ -375,6 +377,11 @@ class AudioBridge(
         for (i in 0 until count) {
             out[i] = ((bytes[i * 2].toInt() and 0xFF) or
                     (bytes[i * 2 + 1].toInt() shl 8)).toShort()
+        }
+        // Clear leftover samples from a previous, longer frame so stale
+        // audio can never leak into the next mix.
+        if (count < out.size) {
+            out.fill(0, count, out.size)
         }
     }
 }
