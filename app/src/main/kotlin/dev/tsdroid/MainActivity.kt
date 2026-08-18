@@ -25,13 +25,28 @@ import android.provider.Settings
 import dev.tsdroid.service.TsConnectionService
 
 class MainActivity : ComponentActivity() {
+    companion object {
+        private const val DEFAULT_LANGUAGE_TAG = "zh"
+        private val SUPPORTED_LANGUAGE_TAGS = setOf("zh", "en", "fr")
+    }
+
     private val connectionViewModel: ConnectionViewModel by viewModels()
     private val TAG = "MainActivity"
 
     override fun attachBaseContext(newBase: Context) {
-        val languageTag = runBlocking(Dispatchers.IO) {
-            SettingsStore(newBase).language.first()
+        // The saved language must be applied before the Activity is created.
+        // Reading DataStore here blocks briefly, so guard against corruption
+        // or storage errors instead of letting a bad preference crash startup.
+        val languageTag = try {
+            val saved = runBlocking(Dispatchers.IO) {
+                SettingsStore(newBase).language.first()
+            }
+            saved.takeIf { it in SUPPORTED_LANGUAGE_TAGS } ?: DEFAULT_LANGUAGE_TAG
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to load saved language, falling back to $DEFAULT_LANGUAGE_TAG", e)
+            DEFAULT_LANGUAGE_TAG
         }
+
         val locale = java.util.Locale.forLanguageTag(languageTag)
         java.util.Locale.setDefault(locale)
         val config = newBase.resources.configuration
