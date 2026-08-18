@@ -24,7 +24,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -90,8 +89,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.tsdroid.han.R
 import dev.tslib.ConnectionState
 import dev.tslib.User
-import dev.tsdroid.ui.component.AnimeBackground
 import dev.tsdroid.ui.component.AnimeWallpaperState
+import dev.tsdroid.ui.component.CustomBackground
 import dev.tsdroid.ui.component.FloatingTile
 import dev.tsdroid.ui.component.ChannelTree
 import dev.tsdroid.ui.component.ChatView
@@ -127,7 +126,6 @@ fun ServerScreen(
     val showLinkThumbnails by viewModel.showLinkThumbnails.collectAsStateWithLifecycle()
     val autoLoadImages by viewModel.autoLoadImages.collectAsStateWithLifecycle()
     val enableFloatingWindow by viewModel.enableFloatingWindow.collectAsStateWithLifecycle()
-    val animeBackground by viewModel.animeBackground.collectAsStateWithLifecycle()
     val noiseSuppression by viewModel.noiseSuppression.collectAsStateWithLifecycle()
     val mutedUserIds by viewModel.mutedUserIds.collectAsStateWithLifecycle()
     val fileManagerOpen by viewModel.fileManagerOpen.collectAsStateWithLifecycle()
@@ -195,7 +193,7 @@ fun ServerScreen(
     val totalUnread = unreadChannel + totalUnreadPrivate
 
     Box(modifier = Modifier.fillMaxSize()) {
-        AnimeBackground(enabled = animeBackground)
+        CustomBackground()
 
         Scaffold(
             containerColor = Color.Transparent,
@@ -203,7 +201,7 @@ fun ServerScreen(
             // Only trust wallpaper-derived colors when the wallpaper is
             // actually visible; otherwise fall back to the theme color
             // (fixes black text/icons on the AMOLED black background).
-            val adaptiveTopBarColor = if (animeBackground) {
+            val adaptiveTopBarColor = if (AnimeWallpaperState.customBitmap.value != null) {
                 AnimeWallpaperState.recommendedContentColor.value
                     ?: MaterialTheme.colorScheme.onSurface
             } else {
@@ -214,16 +212,19 @@ fun ServerScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .statusBarsPadding()
-                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                    .padding(horizontal = 56.dp, vertical = 6.dp),
             ) {
                 FloatingTile(
                     modifier = Modifier
                         .align(Alignment.Center)
-                        .wrapContentSize(),
+                        .fillMaxWidth(),
                     cornerRadius = 24,
                     contentPadding = 14,
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(
+                        modifier = Modifier.align(Alignment.CenterHorizontally),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
                         Surface(
                             shape = CircleShape,
                             color = MaterialTheme.colorScheme.surfaceContainerHigh,

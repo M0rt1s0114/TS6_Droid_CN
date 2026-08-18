@@ -42,7 +42,6 @@
     <string name="show_link_thumbnails">Miniatures des liens vidéo</string>
     <string name="auto_load_images">Charger les images automatiquement</string>
     <string name="enable_floating_window">Activer la fenêtre flottante</string>
-    <string name="anime_background">Fond animé aléatoire</string>
     <string name="noise_suppression">Réduction de bruit du micro</string>
     <string name="chat">Chat</string>
     <string name="push_to_talk">Appuyer pour parler</string>
@@ -57,15 +56,6 @@
     <string name="tab_settings">Paramètres</string>
     <string name="no_connection">Aucune connexion</string>
     <string name="no_connection_hint">Appuyez sur + pour ajouter votre premier serveur</string>
-    <plurals name="wallpaper_cache_size">
-        <item quantity="one">Cache fond d\'écran : %1$s Mo (%2$d image)</item>
-        <item quantity="other">Cache fond d\'écran : %1$s Mo (%2$d images)</item>
-    </plurals>
-    <string name="wallpaper_max_cache">Cache max : %1$d Mo</string>
-    <string name="wallpaper_view_cache">Voir le cache des fonds d\'écran</string>
-    <string name="wallpaper_clear_cache">Vider le cache des fonds d\'écran</string>
-    <string name="wallpaper_clear_cache_confirm">Êtes-vous sûr de vouloir vider tout le cache des fonds d\'écran ? Cette action est irréversible.</string>
-    <string name="wallpaper_cache_empty">Aucun fond d\'écran en cache</string>
     <string name="confirm">Confirmer</string>
     <string name="custom_bg_title">Fond d\'écran personnalisé</string>
     <string name="custom_bg_upload">Choisir dans la galerie</string>

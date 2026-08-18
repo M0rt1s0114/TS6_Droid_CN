@@ -10,7 +10,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -21,10 +20,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
-import dev.tsdroid.data.SettingsStore
 import dev.tsdroid.han.R
-import dev.tsdroid.ui.component.AnimeBackground
 import dev.tsdroid.ui.component.AnimeWallpaperState
+import dev.tsdroid.ui.component.CustomBackground
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -41,8 +39,6 @@ fun AboutScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     val repoUrl = "https://github.com/YUAXI/TS6_Droid_CN"
     val scrollState = rememberScrollState()
-    val settingsStore = remember { SettingsStore(context) }
-    val animeBackground by settingsStore.animeBackground.collectAsStateWithLifecycle(initialValue = true)
 
     var contributors by remember { mutableStateOf<List<GitHubContributor>>(emptyList()) }
     var isLoadingContributors by remember { mutableStateOf(true) }
@@ -76,9 +72,9 @@ fun AboutScreen(onBack: () -> Unit) {
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        AnimeBackground(enabled = animeBackground)
+        CustomBackground()
 
-        val adaptiveContentColor = if (animeBackground) {
+        val adaptiveContentColor = if (AnimeWallpaperState.customBitmap.value != null) {
             AnimeWallpaperState.recommendedContentColor.value
                 ?: MaterialTheme.colorScheme.onSurface
         } else {
