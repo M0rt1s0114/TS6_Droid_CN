@@ -34,6 +34,7 @@
     <string name="push_to_talk">Push to talk</string>
     <string name="mute_mic">Mute mic</string>
     <string name="input_muted_state">Muted</string>
+    <string name="mic_open">Mic open</string>
     <string name="unmute_mic">Unmute mic</string>
     <string name="tab_channel">Channel</string>
     <string name="tab_private">PM</string>

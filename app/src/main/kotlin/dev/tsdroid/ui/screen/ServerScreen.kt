@@ -119,7 +119,7 @@ fun ServerScreen(
     val serverInfo by viewModel.serverInfo.collectAsStateWithLifecycle()
     val channelMessages by viewModel.channelMessages.collectAsStateWithLifecycle()
     val privateMessages by viewModel.privateMessages.collectAsStateWithLifecycle()
-    val isPttMode by viewModel.isPttMode.collectAsStateWithLifecycle()
+    val isMicMuted by viewModel.isMicMuted.collectAsStateWithLifecycle()
     val isOutputMuted by viewModel.isOutputMuted.collectAsStateWithLifecycle()
     val connectionState by viewModel.connectionState.collectAsStateWithLifecycle()
     val unreadChannel by viewModel.unreadChannel.collectAsStateWithLifecycle()
@@ -307,10 +307,10 @@ fun ServerScreen(
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        // 1. Push to talk / muted state
-                        if (isPttMode) {
-                            if (isOutputMuted) {
-                                // Deafen implies mic mute: PTT becomes inert and shows the muted label.
+                        // 1. Talk button: status display or hold-to-talk
+                        when {
+                            isOutputMuted -> {
+                                // Cannot listen => cannot talk.
                                 Box(
                                     modifier = Modifier
                                         .size(72.dp)
@@ -332,8 +332,10 @@ fun ServerScreen(
                                         )
                                     }
                                 }
-                            } else {
-                                // PTT mode: hold to talk
+                            }
+
+                            !isMicMuted -> {
+                                // Mic muted + speaker on = hold-to-talk.
                                 var isPressed by remember { mutableStateOf(false) }
                                 val pttBackground = if (isPressed) MaterialTheme.colorScheme.primaryContainer
                                     else MaterialTheme.colorScheme.surfaceVariant
@@ -372,39 +374,46 @@ fun ServerScreen(
                                     }
                                 }
                             }
-                        } else {
-                            // Voice activity mode: click to go back to PTT
-                            Box(
-                                modifier = Modifier
-                                    .size(72.dp)
-                                    .clip(CircleShape)
-                                    .background(MaterialTheme.colorScheme.errorContainer)
-                                    .clickable { viewModel.toggleVoiceMode() },
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Icon(
-                                        Icons.Default.MicOff,
-                                        contentDescription = stringResource(R.string.mute_mic),
-                                        modifier = Modifier.size(28.dp),
-                                        tint = MaterialTheme.colorScheme.onErrorContainer,
-                                    )
-                                    Text(
-                                        stringResource(R.string.mute),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onErrorContainer,
-                                    )
+
+                            else -> {
+                                // Mic open status indicator, intentionally not clickable.
+                                Box(
+                                    modifier = Modifier
+                                        .size(72.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(0xFF4CAF50)),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Icon(
+                                            Icons.Default.Mic,
+                                            contentDescription = stringResource(R.string.mic_open),
+                                            modifier = Modifier.size(28.dp),
+                                            tint = Color.White,
+                                        )
+                                        Text(
+                                            stringResource(R.string.mic_open),
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = Color.White,
+                                        )
+                                    }
                                 }
                             }
                         }
 
-                        // 2. Mic control (talk mode toggle)
-                        IconButton(onClick = { viewModel.toggleVoiceMode() }) {
+                        // 2. Mic control (disabled while the speaker is muted)
+                        IconButton(
+                            onClick = { viewModel.toggleMicMute() },
+                            enabled = !isOutputMuted,
+                        ) {
                             Icon(
-                                if (isPttMode) Icons.Default.MicOff else Icons.Default.Mic,
-                                contentDescription = stringResource(if (isPttMode) R.string.unmute_mic else R.string.mute_mic),
-                                tint = if (isPttMode) MaterialTheme.colorScheme.error
-                                else MaterialTheme.colorScheme.primary,
+                                if (isMicMuted) Icons.Default.MicOff else Icons.Default.Mic,
+                                contentDescription = stringResource(if (isMicMuted) R.string.unmute_mic else R.string.mute_mic),
+                                tint = when {
+                                    isOutputMuted -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
+                                    isMicMuted -> MaterialTheme.colorScheme.error
+                                    else -> MaterialTheme.colorScheme.primary
+                                },
                             )
                         }
 

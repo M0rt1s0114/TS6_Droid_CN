@@ -133,8 +133,9 @@ class ServerViewModel(application: Application) : AndroidViewModel(application) 
     val privateMessages: StateFlow<Map<Int, List<ChatMessage>>> = _privateMessages.asStateFlow()
 
     // Separate PTT mode from actual mute state
-    private val _isPttMode = MutableStateFlow(true) // true = PTT, false = voice activity
-    val isPttMode: StateFlow<Boolean> = _isPttMode.asStateFlow()
+    // Mic mute state is owned by AudioBridge; the UI reads it from there.
+    private val _isMicMuted = MutableStateFlow(true)
+    val isMicMuted: StateFlow<Boolean> = _isMicMuted.asStateFlow()
 
     private val _isOutputMuted = MutableStateFlow(false)
     val isOutputMuted: StateFlow<Boolean> = _isOutputMuted.asStateFlow()
@@ -340,6 +341,10 @@ class ServerViewModel(application: Application) : AndroidViewModel(application) 
             // Observe audio state for local talking status
             viewModelScope.launch {
                 service.audioBridge.isLocalVoiceActive.collect { _isLocalTalking.value = it }
+            }
+            _isMicMuted.value = service.audioBridge.isMuted.value
+            viewModelScope.launch {
+                service.audioBridge.isMuted.collect { _isMicMuted.value = it }
             }
             viewModelScope.launch {
                 service.audioBridge.isOutputMuted.collect { _isOutputMuted.value = it }
@@ -654,11 +659,10 @@ class ServerViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch { settingsStore.setNoiseSuppression(enabled) }
     }
 
-    fun toggleVoiceMode() {
-        val newPttMode = !_isPttMode.value
-        _isPttMode.value = newPttMode
-        // When switching to PTT mode, mute. When switching to VA, unmute.
-        audioBridge?.setMuted(newPttMode)
+    fun toggleMicMute() {
+        // UI disables this button while output is muted; AudioBridge also
+        // enforces the invariant on its own as a safety net.
+        audioBridge?.toggleMute()
     }
 
     fun toggleOutputMute() {
@@ -676,7 +680,7 @@ class ServerViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun setPushToTalk(pressed: Boolean) {
-        // Only changes mute state, NOT isPttMode — avoids UI recomposition swap
+        // Only changes mute state; AudioBridge enforces the deafen invariant.
         audioBridge?.setMuted(!pressed)
     }
 
