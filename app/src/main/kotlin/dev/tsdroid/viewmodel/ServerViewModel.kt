@@ -301,7 +301,13 @@ class ServerViewModel(application: Application) : AndroidViewModel(application) 
                 service.tsClient.state.collect { _connectionState.value = it }
             }
             viewModelScope.launch {
-                service.tsClient.events.collect { handleEvent(it) }
+                service.tsClient.events.collect { event ->
+                    try {
+                        handleEvent(event)
+                    } catch (t: Throwable) {
+                        Log.e(TAG, "Uncaught error while handling server event ${event.type}", t)
+                    }
+                }
             }
             viewModelScope.launch {
                 service.tsClient.commandErrors.collect { message ->
@@ -322,7 +328,9 @@ class ServerViewModel(application: Application) : AndroidViewModel(application) 
             }
             // Start audio capture if not already running
             if (!service.audioBridge.isCapturing.value) {
-                service.audioBridge.startCapture(viewModelScope, noiseSuppression.value)
+                // Capture must live in the service scope, never the ViewModel
+                // scope, so the mic keeps working with the screen off.
+                service.ensureAudioCapture(noiseSuppression.value)
             }
             // Apply persisted audio gain
             service.audioBridge.gainFactor = audioGain.value

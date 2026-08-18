@@ -1,9 +1,11 @@
 package dev.tsdroid.service
 
+import android.annotation.SuppressLint
 import android.graphics.PixelFormat
 import android.os.Binder
 import android.os.Build
 import android.os.IBinder
+import android.os.PowerManager
 import android.provider.Settings
 import android.util.Log
 import android.view.Gravity
@@ -60,10 +62,13 @@ import dev.tsdroid.bridge.AudioBridge
 import dev.tsdroid.bridge.AvatarCache
 import dev.tsdroid.bridge.TsClient
 import dev.tsdroid.bridge.WhisperBridge
+import dev.tsdroid.diag.DiagLog
 import dev.tslib.Identity
 import dev.tslib.Channel
 import dev.tslib.User
 import dev.tsdroid.ui.component.ChannelTree
+import dev.tslib.ConnectionState
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -101,11 +106,20 @@ class TsConnectionService : LifecycleService(), ViewModelStoreOwner, SavedStateR
     }
 
     private val binder = LocalBinder()
-    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+
+    private val coroutineExceptionHandler = CoroutineExceptionHandler { _, throwable ->
+        DiagLog.e(TAG, "Uncaught coroutine exception in service scope", throwable)
+    }
+    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main + coroutineExceptionHandler)
 
     val tsClient = TsClient()
     lateinit var audioBridge: AudioBridge
         private set
+
+    // Keeps the CPU awake while a voice connection is active. Voice chat must
+    // survive Doze/screen-off, and FGS alone is not enough on some OEM ROMs.
+    private var wakeLock: PowerManager.WakeLock? = null
+    @Volatile private var noiseSuppressionEnabled = true
 
     private lateinit var windowManager: WindowManager
     private var overlayView: ComposeView? = null
@@ -144,7 +158,7 @@ class TsConnectionService : LifecycleService(), ViewModelStoreOwner, SavedStateR
         isStopping = false
         restartRequestedWhileStopping = false
         instance = this
-        Log.d(TAG, "Foreground Service Created")
+        DiagLog.i(TAG, "Foreground service created")
         savedStateRegistryController.performRestore(null)
         windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
         avatarCache = AvatarCache(applicationContext.cacheDir)
@@ -156,7 +170,8 @@ class TsConnectionService : LifecycleService(), ViewModelStoreOwner, SavedStateR
 
         // Listen for audio events, talk status, and play per-user mixing
         tsClient.events.onEach { event ->
-            when (event.type) {
+            try {
+                when (event.type) {
                 "audio_received" -> {
                     val userId = (event.data["user_id"] as? Number)?.toInt() ?: return@onEach
                     val data = event.data["data"]
@@ -220,12 +235,18 @@ class TsConnectionService : LifecycleService(), ViewModelStoreOwner, SavedStateR
                     }
                 }
             }
+            } catch (t: Throwable) {
+                DiagLog.e(TAG, "Failed to process event: ${event.type}", t)
+            }
         }.launchIn(serviceScope)
 
         tsClient.state.onEach { state ->
-            overlayConnected = state == dev.tslib.ConnectionState.CONNECTED
+            val connected = state == ConnectionState.CONNECTED
+            overlayConnected = connected
             updateOverlayChannelName()
             updateNotification()
+            // Keep the CPU awake exactly while a voice connection is active.
+            if (connected) acquireWakeLock() else releaseWakeLock()
         }.launchIn(serviceScope)
 
         tsClient.users.onEach {
@@ -236,6 +257,24 @@ class TsConnectionService : LifecycleService(), ViewModelStoreOwner, SavedStateR
         tsClient.channels.onEach {
             updateOverlayChannelName()
         }.launchIn(serviceScope)
+
+        // Capture watchdog: if the AudioRecord dies while we are still
+        // connected (e.g. after screen lock/unlock or a device audio route
+        // change), restart it with exponential backoff instead of silently
+        // losing the microphone until the next manual reconnect.
+        serviceScope.launch {
+            var retryDelayMs = 1_000L
+            while (true) {
+                if (tsClient.state.value == ConnectionState.CONNECTED && !audioBridge.isCapturing.value) {
+                    val restarted = audioBridge.startCapture(serviceScope, noiseSuppressionEnabled)
+                    DiagLog.w(TAG, "Capture watchdog: microphone not running while connected; restart=$restarted")
+                    retryDelayMs = if (restarted) 1_000L else (retryDelayMs * 2).coerceAtMost(30_000L)
+                } else {
+                    retryDelayMs = 1_000L
+                }
+                delay(retryDelayMs)
+            }
+        }
         
         // Listen to local voice activity and apply delay mechanism
         audioBridge.isLocalVoiceActive.onEach { isSpeaking ->
@@ -416,15 +455,55 @@ class TsConnectionService : LifecycleService(), ViewModelStoreOwner, SavedStateR
             (address == null || tsClient.serverAddress == address)
     }
 
+    /**
+     * Starts microphone capture with the service scope, so the capture job
+     * survives Activity/ViewModel recreation and keeps running with the
+     * screen off as long as the foreground service lives.
+     */
+    fun ensureAudioCapture(noiseSuppression: Boolean = noiseSuppressionEnabled) {
+        noiseSuppressionEnabled = noiseSuppression
+        if (tsClient.isConnected) {
+            audioBridge.startCapture(serviceScope, noiseSuppression)
+        }
+    }
+
+    @SuppressLint("WakelockTimeout")
+    private fun acquireWakeLock() {
+        if (wakeLock?.isHeld == true) return
+        try {
+            val powerManager = getSystemService(PowerManager::class.java)
+            wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "$packageName:ts-connection").apply {
+                setReferenceCounted(false)
+                acquire()
+            }
+            DiagLog.i(TAG, "Wake lock acquired")
+        } catch (e: Throwable) {
+            DiagLog.w(TAG, "Failed to acquire wake lock", e)
+        }
+    }
+
+    private fun releaseWakeLock() {
+        try {
+            wakeLock?.let {
+                if (it.isHeld) it.release()
+            }
+            wakeLock = null
+        } catch (e: Throwable) {
+            DiagLog.w(TAG, "Failed to release wake lock", e)
+        }
+    }
+
     suspend fun connect(address: String, identity: Identity, nickname: String, password: String?): Throwable? {
         if (isStopping) {
             return IllegalStateException("Connection service is still stopping. Please try again.")
         }
 
         isIntentionalDisconnect = false
+        DiagLog.i(TAG, "Connecting to $address as $nickname")
         return try {
             tsClient.connect(address, identity, nickname, password)
-            audioBridge.startCapture(serviceScope)
+            DiagLog.i(TAG, "Native connection established")
+            audioBridge.startCapture(serviceScope, noiseSuppressionEnabled)
             // Sync initial mute state with server
             if (audioBridge.isMuted.value) {
                 tsClient.setInputMuted(true)
@@ -437,7 +516,7 @@ class TsConnectionService : LifecycleService(), ViewModelStoreOwner, SavedStateR
             null
         } catch (e: Throwable) {
             if (e is kotlinx.coroutines.CancellationException) throw e
-            Log.e(TAG, "Connection error", e)
+            DiagLog.e(TAG, "Connection error", e)
             cleanupFailedConnection()
             e
         }
@@ -471,12 +550,14 @@ class TsConnectionService : LifecycleService(), ViewModelStoreOwner, SavedStateR
         hideFloatingWindow()
         audioBridge.stopCapture()
         WhisperManager.reset()
+        releaseWakeLock()
     }
 
     private fun cleanupFailedConnection() {
         hideFloatingWindow()
         audioBridge.stopCapture()
         WhisperManager.reset()
+        releaseWakeLock()
         isStopping = false
         restartRequestedWhileStopping = false
         instance = this
@@ -711,13 +792,15 @@ class TsConnectionService : LifecycleService(), ViewModelStoreOwner, SavedStateR
         hideFloatingWindow()
         audioBridge.stopCapture()
         WhisperManager.reset()
+        releaseWakeLock()
         try {
             tsClient.disconnect()
         } catch (e: Throwable) {
-            Log.w(TAG, "Best-effort disconnect during service destroy failed", e)
+            DiagLog.w(TAG, "Best-effort disconnect during service destroy failed", e)
         }
         audioBridge.release()
         serviceScope.cancel()
+        DiagLog.i(TAG, "Foreground service destroyed")
         super.onDestroy()
     }
 

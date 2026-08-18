@@ -14,6 +14,7 @@ import android.util.Log
 import androidx.core.content.ContextCompat
 import dev.tslib.AudioConfig
 import dev.tslib.OpusCodec
+import dev.tsdroid.diag.DiagLog
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -100,13 +101,13 @@ class AudioBridge(
     }
 
     @SuppressLint("MissingPermission")
-    fun startCapture(scope: CoroutineScope, noiseSuppressionEnabled: Boolean = true) {
-        if (_isCapturing.value) return
+    fun startCapture(scope: CoroutineScope, noiseSuppressionEnabled: Boolean = true): Boolean {
+        if (_isCapturing.value) return true
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO)
             != PackageManager.PERMISSION_GRANTED
         ) {
-            Log.w(TAG, "Cannot start capture: RECORD_AUDIO permission is missing")
-            return
+            DiagLog.w(TAG, "Cannot start capture: RECORD_AUDIO permission is missing")
+            return false
         }
 
         val minBuf = AudioRecord.getMinBufferSize(
@@ -123,42 +124,43 @@ class AudioBridge(
                 maxOf(minBuf, FRAME_SIZE_BYTES * 4),
             )
         } catch (e: Throwable) {
-            Log.e(TAG, "Failed to create AudioRecord", e)
-            return
+            DiagLog.e(TAG, "Failed to create AudioRecord", e)
+            return false
         }
         if (record.state != AudioRecord.STATE_INITIALIZED) {
-            Log.e(TAG, "AudioRecord is not initialized")
+            DiagLog.e(TAG, "AudioRecord is not initialized")
             record.release()
-            return
+            return false
         }
         try {
             record.startRecording()
         } catch (e: Throwable) {
-            Log.e(TAG, "Failed to start microphone capture", e)
+            DiagLog.e(TAG, "Failed to start microphone capture", e)
             record.release()
-            return
+            return false
         }
         audioRecord = record
         _isCapturing.value = true
+        DiagLog.i(TAG, "Microphone capture started (source=VOICE_COMMUNICATION, noiseSuppression=$noiseSuppressionEnabled)")
         noiseSuppressor?.release()
         noiseSuppressor = null
         if (noiseSuppressionEnabled && NoiseSuppressor.isAvailable()) {
             try {
                 NoiseSuppressor.create(record.audioSessionId)?.also {
                     noiseSuppressor = it
-                    Log.i(TAG, "NoiseSuppressor enabled (session=${record.audioSessionId})")
+                    DiagLog.i(TAG, "NoiseSuppressor enabled (session=${record.audioSessionId})")
                 }
             } catch (e: Exception) {
-                Log.w(TAG, "Failed to create NoiseSuppressor", e)
+                DiagLog.w(TAG, "Failed to create NoiseSuppressor", e)
             }
         } else {
-            Log.i(TAG, "NoiseSuppressor skipped: enabled=$noiseSuppressionEnabled, available=${NoiseSuppressor.isAvailable()}")
+            DiagLog.i(TAG, "NoiseSuppressor skipped: enabled=$noiseSuppressionEnabled, available=${NoiseSuppressor.isAvailable()}")
         }
 
         captureJob = scope.launch(Dispatchers.IO) {
             val buffer = ShortArray(FRAME_SIZE_SAMPLES)
             val codec = encoder ?: run {
-                Log.e(TAG, "Cannot start capture: Opus encoder is not initialized")
+                DiagLog.e(TAG, "Cannot start capture: Opus encoder is not initialized")
                 _isCapturing.value = false
                 return@launch
             }
@@ -166,11 +168,11 @@ class AudioBridge(
                 val read = try {
                     audioRecord?.read(buffer, 0, FRAME_SIZE_SAMPLES) ?: break
                 } catch (e: Throwable) {
-                    Log.e(TAG, "Microphone read failed", e)
+                    DiagLog.e(TAG, "Microphone read failed", e)
                     break
                 }
                 if (read < 0) {
-                    Log.e(TAG, "Microphone read returned error $read")
+                    DiagLog.e(TAG, "Microphone read returned error $read")
                     break
                 }
                 if (read == FRAME_SIZE_SAMPLES && !_isMuted.value) {
@@ -188,9 +190,15 @@ class AudioBridge(
                         tsClient.sendAudio(encoded, CODEC_OPUS_VOICE)
                     } catch (_: Exception) {}
                 } else {
+                    if (read != FRAME_SIZE_SAMPLES) {
+                        // Partial reads are unusual in blocking mode; log once per
+                        // occurrence so the service watchdog can restart us cleanly.
+                        DiagLog.w(TAG, "Partial microphone read: $read/${FRAME_SIZE_SAMPLES} samples")
+                    }
                     _isLocalVoiceActive.value = false
                 }
             }
+            DiagLog.w(TAG, "Microphone capture loop ended")
             _isCapturing.value = false
             _isLocalVoiceActive.value = false
             val finishedRecord = audioRecord
@@ -206,9 +214,11 @@ class AudioBridge(
             } catch (_: Throwable) {
             }
         }
+        return true
     }
 
     fun stopCapture() {
+        DiagLog.i(TAG, "Stopping microphone capture")
         _isCapturing.value = false
         captureJob?.cancel()
         captureJob = null
