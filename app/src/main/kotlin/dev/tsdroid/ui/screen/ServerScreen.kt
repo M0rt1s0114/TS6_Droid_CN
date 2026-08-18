@@ -216,15 +216,18 @@ fun ServerScreen(
                     .fillMaxWidth()
                     .navigationBarsPadding()
                     .padding(horizontal = 16.dp, vertical = 8.dp),
+                contentAlignment = Alignment.Center,
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .navigationBarsPadding()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceEvenly,
-                    verticalAlignment = Alignment.CenterVertically,
+                Surface(
+                    shape = RoundedCornerShape(28.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.92f),
+                    shadowElevation = 8.dp,
                 ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
                     // Chat FAB with badge
                     Box {
                         IconButton(onClick = {
@@ -233,7 +236,7 @@ fun ServerScreen(
                             Icon(
                                 Icons.Default.ChatBubble,
                                 contentDescription = stringResource(R.string.chat),
-                                tint = Color(0xFF4CAF50),
+                                tint = MaterialTheme.colorScheme.tertiary,
                             )
                         }
                         if (totalUnread > 0) {
@@ -323,13 +326,13 @@ fun ServerScreen(
                         )
                     }
 
-                    // Whisper (瀵嗚亰) indicator 鈥?shows active state, click to stop
+                    // Whisper indicator — shows active state, click to stop
                     if (WhisperManager.isWhisperActive && whisperFirstTargetName != null) {
                         IconButton(onClick = { viewModel.toggleWhisper(WhisperManager.whisperTargets.first()) }) {
                             Icon(
                                 Icons.Default.Forum,
-                                contentDescription = "鍋滄瀵嗚亰",
-                                tint = Color(0xFF4CAF50),
+                                contentDescription = stringResource(R.string.whisper_stop),
+                                tint = MaterialTheme.colorScheme.tertiary,
                             )
                         }
                     } else {
@@ -339,7 +342,7 @@ fun ServerScreen(
                         ) {
                             Icon(
                                 Icons.Default.Forum,
-                                contentDescription = "瀵嗚亰",
+                                contentDescription = stringResource(R.string.whisper),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
                             )
                         }
@@ -353,6 +356,7 @@ fun ServerScreen(
                             tint = if (isOutputMuted) MaterialTheme.colorScheme.error
                             else MaterialTheme.colorScheme.primary,
                         )
+                    }
                     }
                 }
             }
@@ -555,7 +559,7 @@ fun ChatPanel(
     }
     Surface(
         modifier = Modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f),
+        color = MaterialTheme.colorScheme.surface,
     ) {
         Column(
             modifier = Modifier
@@ -656,8 +660,8 @@ fun ChatPanel(
             // Whisper mode indicator
             if (isWhisperActive && whisperTargetName != null) {
                 Surface(
-                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.tertiaryContainer,
+                    shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp),
                 ) {
                     Row(
@@ -668,13 +672,13 @@ fun ChatPanel(
                             Icons.Default.Forum,
                             contentDescription = null,
                             modifier = Modifier.size(16.dp),
-                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                            tint = MaterialTheme.colorScheme.onTertiaryContainer,
                         )
                         Spacer(Modifier.width(6.dp))
                         Text(
-                            text = "瀵嗚亰 ${whisperTargetName}",
+                            text = stringResource(R.string.whisper) + " " + whisperTargetName,
                             style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            color = MaterialTheme.colorScheme.onTertiaryContainer,
                         )
                     }
                 }
@@ -718,7 +722,7 @@ fun ChatPanel(
                         Text(
                             when {
                                 isWhisperActive && whisperTargetName != null ->
-                                    "瀵嗚亰 ${whisperTargetName}..."
+                                    stringResource(R.string.whisper) + " ${whisperTargetName}..."
                                 chatTab == 0 -> stringResource(R.string.message_channel_placeholder)
                                 else -> stringResource(R.string.message_private_placeholder, pmTarget?.nickname ?: "?")
                             }

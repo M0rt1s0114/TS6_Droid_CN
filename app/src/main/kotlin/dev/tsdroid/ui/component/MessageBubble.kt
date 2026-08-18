@@ -8,6 +8,7 @@ import android.text.style.StyleSpan
 import android.text.style.TypefaceSpan
 import android.text.style.URLSpan
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -15,16 +16,16 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Image
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -116,74 +117,90 @@ fun MessageBubble(
         parseMessage(message.text, linkColor, codeBackground, showLinkThumbnails)
     }
 
-    Card(
+    // Discord-like asymmetric corners: the "tail" points toward the sender.
+    val bubbleShape = if (isMe) {
+        RoundedCornerShape(topStart = 16.dp, topEnd = 4.dp, bottomEnd = 16.dp, bottomStart = 16.dp)
+    } else {
+        RoundedCornerShape(topStart = 4.dp, topEnd = 16.dp, bottomEnd = 16.dp, bottomStart = 16.dp)
+    }
+
+    Row(
         modifier = modifier
             .fillMaxWidth()
             .padding(
-                start = if (isMe) 48.dp else 0.dp,
-                end = if (isMe) 0.dp else 48.dp,
+                start = if (isMe) 56.dp else 8.dp,
+                end = if (isMe) 8.dp else 56.dp,
             ),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isMe)
-                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f)
-            else
-                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
-        ),
+        horizontalArrangement = if (isMe) Arrangement.End else Arrangement.Start,
     ) {
-        Column(
-            modifier = Modifier.padding(8.dp),
+        Surface(
+            modifier = Modifier.widthIn(max = 320.dp),
+            shape = bubbleShape,
+            color = if (isMe)
+                MaterialTheme.colorScheme.primaryContainer
+            else
+                MaterialTheme.colorScheme.surfaceContainerHigh,
+            contentColor = if (isMe)
+                MaterialTheme.colorScheme.onPrimaryContainer
+            else
+                MaterialTheme.colorScheme.onSurface,
         ) {
-            if (!isMe) {
+            Column(
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            ) {
+                if (!isMe) {
+                    Text(
+                        text = message.sender,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
+
+                if (message.fileAttachment != null) {
+                    FileAttachmentCard(message.fileAttachment, onDownload, autoLoadImages)
+                } else {
+                    // Text content
+                    if (parsed.text.isNotBlank()) {
+                        Text(
+                            text = parsed.text,
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    }
+
+                    // Video thumbnails
+                    for (thumbUrl in parsed.thumbnailUrls) {
+                        AsyncImage(
+                            model = thumbUrl,
+                            contentDescription = null,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 4.dp)
+                                .clip(RoundedCornerShape(8.dp)),
+                            contentScale = ContentScale.FillWidth,
+                        )
+                    }
+
+                    // Images
+                    for (imageUrl in parsed.imageUrls) {
+                        AsyncImage(
+                            model = imageUrl,
+                            contentDescription = stringResource(R.string.image),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 4.dp)
+                                .clip(RoundedCornerShape(8.dp)),
+                            contentScale = ContentScale.FillWidth,
+                        )
+                    }
+                }
+
                 Text(
-                    text = message.sender,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.primary,
+                    text = timeFormat.format(Date(message.timestamp)),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.align(Alignment.End),
                 )
             }
-
-            if (message.fileAttachment != null) {
-                FileAttachmentCard(message.fileAttachment, onDownload, autoLoadImages)
-            } else {
-                // Text content
-                if (parsed.text.isNotBlank()) {
-                    Text(
-                        text = parsed.text,
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                }
-
-                // Video thumbnails
-                for (thumbUrl in parsed.thumbnailUrls) {
-                    AsyncImage(
-                        model = thumbUrl,
-                        contentDescription = null,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 4.dp)
-                            .clip(RoundedCornerShape(8.dp)),
-                        contentScale = ContentScale.FillWidth,
-                    )
-                }
-
-                // Images
-                for (imageUrl in parsed.imageUrls) {
-                    AsyncImage(
-                        model = imageUrl,
-                        contentDescription = stringResource(R.string.image),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 4.dp)
-                            .clip(RoundedCornerShape(8.dp)),
-                        contentScale = ContentScale.FillWidth,
-                    )
-                }
-            }
-
-            Text(
-                text = timeFormat.format(Date(message.timestamp)),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
         }
     }
 }

@@ -39,6 +39,7 @@
     <string name="tab_home">Home</string>
     <string name="tab_settings">Settings</string>
     <string name="no_connection">No connections</string>
+    <string name="no_connection_hint">Tap + to add your first server</string>
     <plurals name="wallpaper_cache_size">
         <item quantity="one">Wallpaper cache: %1$s MB (%2$d image)</item>
         <item quantity="other">Wallpaper cache: %1$s MB (%2$d images)</item>
@@ -97,6 +98,8 @@
 
     <!-- Notification -->
     <string name="notif_unmute">Unmute</string>
+    <string name="whisper">Whisper</string>
+    <string name="whisper_stop">Stop whisper</string>
 
     <!-- ViewModel -->
     <string name="me_sender">Me</string>

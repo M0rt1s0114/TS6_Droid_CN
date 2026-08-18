@@ -55,6 +55,7 @@
     <string name="tab_home">主页</string>
     <string name="tab_settings">设置</string>
     <string name="no_connection">暂无连接</string>
+    <string name="no_connection_hint">点击右下角 + 添加你的第一个服务器</string>
     <plurals name="wallpaper_cache_size">
         <item quantity="other">壁纸缓存：%1$s MB（%2$d 张）</item>
     </plurals>
@@ -136,6 +137,8 @@
     <!-- Notification -->
     <string name="notif_unmute">取消静音</string>
     <string name="notif_mute">静音</string>
+    <string name="whisper">密聊</string>
+    <string name="whisper_stop">停止密聊</string>
 
     <!-- ViewModel -->
     <string name="me_sender">我</string>

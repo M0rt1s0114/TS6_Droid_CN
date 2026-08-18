@@ -55,6 +55,7 @@
     <string name="tab_home">Accueil</string>
     <string name="tab_settings">Paramètres</string>
     <string name="no_connection">Aucune connexion</string>
+    <string name="no_connection_hint">Appuyez sur + pour ajouter votre premier serveur</string>
     <plurals name="wallpaper_cache_size">
         <item quantity="one">Cache fond d\'écran : %1$s Mo (%2$d image)</item>
         <item quantity="other">Cache fond d\'écran : %1$s Mo (%2$d images)</item>
@@ -137,6 +138,8 @@
     <!-- Notification -->
     <string name="notif_unmute">Réactiver</string>
     <string name="notif_mute">Mute</string>
+    <string name="whisper">Chuchoter</string>
+    <string name="whisper_stop">Arrêter le chuchotement</string>
 
     <!-- ViewModel -->
     <string name="me_sender">Moi</string>

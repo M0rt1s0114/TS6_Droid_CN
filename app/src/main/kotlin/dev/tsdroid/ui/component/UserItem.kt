@@ -1,5 +1,6 @@
 package dev.tsdroid.ui.component
 
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -36,6 +37,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -139,9 +141,9 @@ fun UserItem(
                 ) {
                     Icon(
                         Icons.Default.Forum,
-                        contentDescription = "密聊",
+                        contentDescription = stringResource(R.string.whisper),
                         modifier = Modifier.size(16.dp),
-                        tint = if (WhisperManager.isWhisperActive && WhisperManager.whisperTargets.contains(user.id)) Color(0xFF4CAF50) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                        tint = if (WhisperManager.isWhisperActive && WhisperManager.whisperTargets.contains(user.id)) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                     )
                 }
             }
@@ -176,11 +178,21 @@ private fun AvatarWithRing(
         else -> Color.Transparent
     }
 
-    val ringModifier = if (ringActive) Modifier.border(
-        width = 2.dp,
-        color = ringColor,
-        shape = CircleShape,
-    ) else Modifier
+    // Gentle fade/scale so talking state changes never snap harshly.
+    val ringAlpha by animateFloatAsState(if (ringActive) 1f else 0f, label = "avatarRingAlpha")
+    val ringScale by animateFloatAsState(if (ringActive) 1.1f else 1f, label = "avatarRingScale")
+
+    val ringModifier = Modifier
+        .graphicsLayer {
+            alpha = ringAlpha
+            scaleX = ringScale
+            scaleY = ringScale
+        }
+        .border(
+            width = 2.dp,
+            color = ringColor,
+            shape = CircleShape,
+        )
 
     Box(
         modifier = Modifier.size(32.dp),

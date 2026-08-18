@@ -115,7 +115,7 @@ fun SettingsPage(
         // ── 外观 ──
         Card(
             modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.92f)),
             shape = MaterialTheme.shapes.large,
         ) {
             Column(modifier = Modifier.padding(vertical = 4.dp)) {
@@ -179,7 +179,7 @@ fun SettingsPage(
         // ── 音频 ──
         Card(
             modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.92f)),
             shape = MaterialTheme.shapes.large,
         ) {
             Column(modifier = Modifier.padding(vertical = 4.dp)) {
@@ -214,7 +214,7 @@ fun SettingsPage(
         // ── 聊天 ──
         Card(
             modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.92f)),
             shape = MaterialTheme.shapes.large,
         ) {
             Column(modifier = Modifier.padding(vertical = 4.dp)) {
@@ -243,7 +243,7 @@ fun SettingsPage(
         // ── 更多 ──
         Card(
             modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.92f)),
             shape = MaterialTheme.shapes.large,
         ) {
             Column(modifier = Modifier.padding(vertical = 4.dp)) {
