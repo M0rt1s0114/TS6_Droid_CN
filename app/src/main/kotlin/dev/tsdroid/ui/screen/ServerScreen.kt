@@ -72,6 +72,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -103,7 +104,7 @@ import dev.tsdroid.viewmodel.DownloadState
 import dev.tsdroid.viewmodel.FileAttachment
 import dev.tsdroid.viewmodel.ServerViewModel
 import kotlinx.coroutines.flow.StateFlow
-import dev.tsdroid.service.WhisperManager
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -122,6 +123,7 @@ fun ServerScreen(
     val isMicMuted by viewModel.isMicMuted.collectAsStateWithLifecycle()
     val isOutputMuted by viewModel.isOutputMuted.collectAsStateWithLifecycle()
     val connectionState by viewModel.connectionState.collectAsStateWithLifecycle()
+    val connectionStartedAt by viewModel.connectionStartedAtMillis.collectAsStateWithLifecycle()
     val unreadChannel by viewModel.unreadChannel.collectAsStateWithLifecycle()
     val unreadPrivate by viewModel.unreadPrivate.collectAsStateWithLifecycle()
     val audioGain by viewModel.audioGain.collectAsStateWithLifecycle()
@@ -143,10 +145,6 @@ fun ServerScreen(
     var chatTab by remember { mutableIntStateOf(0) }
     var messageText by remember { mutableStateOf("") }
     var pmTargetId by remember { mutableStateOf<Int?>(null) }
-
-    // Whisper (瀵嗚亰) state 鈥?read directly from WhisperManager
-    val whisperTargetNames = WhisperManager.whisperTargetNames
-    val whisperFirstTargetName = whisperTargetNames.firstOrNull()
 
     // Resolve pmTarget User from users list
     val pmTarget = pmTargetId?.let { id -> users.find { it.id == id } }
@@ -250,13 +248,28 @@ fun ServerScreen(
                                 overflow = TextOverflow.Ellipsis,
                             )
                             val maxClients = serverInfo?.maxClients ?: 0
-                            val subtitle = if (maxClients > 0) {
-                                "${users.size}/$maxClients · ${channels.size}"
+                            val onlineText = if (maxClients > 0) {
+                                "${users.size}/$maxClients"
                             } else {
-                                "${users.size} · ${channels.size}"
+                                "${users.size}"
                             }
+                            var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
+                            LaunchedEffect(connectionStartedAt) {
+                                while (true) {
+                                    now = System.currentTimeMillis()
+                                    delay(1_000)
+                                }
+                            }
+                            val elapsed = ((now - connectionStartedAt) / 1_000).coerceAtLeast(0)
+                            val sessionText = String.format(
+                                java.util.Locale.US,
+                                "%02d:%02d:%02d",
+                                elapsed / 3_600,
+                                (elapsed % 3_600) / 60,
+                                elapsed % 60,
+                            )
                             Text(
-                                text = subtitle,
+                                text = "$onlineText · $sessionText",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = adaptiveTopBarColor.copy(alpha = 0.7f),
                                 maxLines = 1,
@@ -452,17 +465,6 @@ fun ServerScreen(
                             }
                         }
 
-                        // Whisper indicator, shown only while a whisper is active
-                        if (WhisperManager.isWhisperActive && whisperFirstTargetName != null) {
-                            IconButton(onClick = { viewModel.toggleWhisper(WhisperManager.whisperTargets.first()) }) {
-                                Icon(
-                                    Icons.Default.Forum,
-                                    contentDescription = stringResource(R.string.whisper_stop),
-                                    tint = MaterialTheme.colorScheme.tertiary,
-                                )
-                            }
-                        }
-
                         // 5. Exit server
                         IconButton(onClick = { viewModel.disconnect() }) {
                             Icon(
@@ -499,7 +501,6 @@ fun ServerScreen(
                         chatOpen = true
                     },
                     onUserLongClick = { user -> viewModel.toggleMuteUser(user.id) },
-                    onWhisperClick = { userId -> viewModel.toggleWhisper(userId) },
                     mutedUserIds = mutedUserIds,
                     channelIcons = channelIcons,
                     userAvatars = userAvatars,
@@ -578,13 +579,9 @@ fun ServerScreen(
                         onSelectPmUser = { userId -> pmTargetId = userId },
                         onClearPmTarget = { pmTargetId = null },
                         onSend = {
-                            if (WhisperManager.isWhisperActive && whisperFirstTargetName != null) {
-                                viewModel.sendWhisperMessage(messageText)
-                            } else {
-                                when (chatTab) {
-                                    0 -> viewModel.sendChannelMessage(messageText)
-                                    1 -> pmTargetId?.let { viewModel.sendPrivateMessage(it, messageText) }
-                                }
+                            when (chatTab) {
+                                0 -> viewModel.sendChannelMessage(messageText)
+                                1 -> pmTargetId?.let { viewModel.sendPrivateMessage(it, messageText) }
                             }
                             messageText = ""
                         },
@@ -599,8 +596,6 @@ fun ServerScreen(
                             viewModel.uploadAndSendFile(fileName, data, chatTab == 1, pmTargetId)
                         },
                         onDownload = { attachment -> viewModel.downloadAttachment(attachment) },
-                        isWhisperActive = WhisperManager.isWhisperActive,
-                        whisperTargetName = whisperFirstTargetName,
                     )
                 }
             }
@@ -660,8 +655,6 @@ fun ChatPanel(
     canUploadFiles: Boolean = true,
     onUploadFile: (String, ByteArray) -> Unit = { _, _ -> },
     onDownload: ((FileAttachment) -> StateFlow<DownloadState>)? = null,
-    isWhisperActive: Boolean = false,
-    whisperTargetName: String? = null,
 ) {
     val context = LocalContext.current
     val filePickerLauncher = rememberLauncherForActivityResult(
@@ -779,33 +772,6 @@ fun ChatPanel(
                 }
             }
 
-            // Whisper mode indicator
-            if (isWhisperActive && whisperTargetName != null) {
-                Surface(
-                    color = MaterialTheme.colorScheme.tertiaryContainer,
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp),
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Icon(
-                            Icons.Default.Forum,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp),
-                            tint = MaterialTheme.colorScheme.onTertiaryContainer,
-                        )
-                        Spacer(Modifier.width(6.dp))
-                        Text(
-                            text = stringResource(R.string.whisper) + " " + whisperTargetName,
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onTertiaryContainer,
-                        )
-                    }
-                }
-            }
-
             // Messages
             val messages = when (chatTab) {
                 0 -> channelMessages
@@ -831,7 +797,7 @@ fun ChatPanel(
                 if (canUploadFiles) {
                     IconButton(
                         onClick = { filePickerLauncher.launch("*/*") },
-                        enabled = (chatTab == 0 || pmTarget != null) && !isWhisperActive,
+                        enabled = chatTab == 0 || pmTarget != null,
                     ) {
                         Icon(Icons.Default.AttachFile, contentDescription = stringResource(R.string.attach_file))
                     }
@@ -842,16 +808,15 @@ fun ChatPanel(
                     modifier = Modifier.weight(1f),
                     placeholder = {
                         Text(
-                            when {
-                                isWhisperActive && whisperTargetName != null ->
-                                    stringResource(R.string.whisper) + " ${whisperTargetName}..."
-                                chatTab == 0 -> stringResource(R.string.message_channel_placeholder)
-                                else -> stringResource(R.string.message_private_placeholder, pmTarget?.nickname ?: "?")
+                            text = if (chatTab == 0) {
+                                stringResource(R.string.message_channel_placeholder)
+                            } else {
+                                stringResource(R.string.message_private_placeholder, pmTarget?.nickname ?: "?")
                             }
                         )
                     },
                     singleLine = true,
-                    enabled = chatTab == 0 || pmTarget != null || (isWhisperActive && whisperTargetName != null),
+                    enabled = chatTab == 0 || pmTarget != null,
                     colors = OutlinedTextFieldDefaults.colors(
                         unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
                         focusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
@@ -861,7 +826,7 @@ fun ChatPanel(
                 )
                 IconButton(
                     onClick = onSend,
-                    enabled = messageText.isNotBlank() && (chatTab == 0 || pmTarget != null || (isWhisperActive && whisperTargetName != null)),
+                    enabled = messageText.isNotBlank() && (chatTab == 0 || pmTarget != null),
                 ) {
                     Icon(Icons.AutoMirrored.Filled.Send, contentDescription = stringResource(R.string.send))
                 }

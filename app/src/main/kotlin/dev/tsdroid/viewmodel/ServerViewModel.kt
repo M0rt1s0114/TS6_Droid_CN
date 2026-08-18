@@ -149,6 +149,9 @@ class ServerViewModel(application: Application) : AndroidViewModel(application) 
     private val _connectionState = MutableStateFlow(ConnectionState.CONNECTED)
     val connectionState: StateFlow<Int> = _connectionState.asStateFlow()
 
+    private val _connectionStartedAtMillis = MutableStateFlow(0L)
+    val connectionStartedAtMillis: StateFlow<Long> = _connectionStartedAtMillis.asStateFlow()
+
     // Unread message counters
     private val _unreadChannel = MutableStateFlow(0)
     val unreadChannel: StateFlow<Int> = _unreadChannel.asStateFlow()
@@ -263,6 +266,7 @@ class ServerViewModel(application: Application) : AndroidViewModel(application) 
             tsClient = service.tsClient
             audioBridge = service.audioBridge
             audioBridge?.setMutedUserIds(_mutedUserIds.value)
+            _connectionStartedAtMillis.value = service.connectionStartedAtMillis
             queriedPermChannels.clear()
 
             viewModelScope.launch {
@@ -290,7 +294,12 @@ class ServerViewModel(application: Application) : AndroidViewModel(application) 
                 }
             }
             viewModelScope.launch {
-                service.tsClient.state.collect { _connectionState.value = it }
+                service.tsClient.state.collect { state ->
+                    _connectionState.value = state
+                    if (state == ConnectionState.CONNECTED) {
+                        _connectionStartedAtMillis.value = service.connectionStartedAtMillis
+                    }
+                }
             }
             viewModelScope.launch {
                 service.tsClient.events.collect { event ->

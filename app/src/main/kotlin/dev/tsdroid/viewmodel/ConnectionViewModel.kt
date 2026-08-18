@@ -57,6 +57,7 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
     val nickname = MutableStateFlow("")
     val password = MutableStateFlow("")
     val channel = MutableStateFlow("")
+    val iconEmoji = MutableStateFlow<String?>(null)
 
     /** Index du favori en cours d'édition, ou -1 si ajout. */
     private val _editingIndex = MutableStateFlow(-1)
@@ -316,6 +317,7 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
             nickname = nick,
             password = password.value.trim().takeIf { it.isNotEmpty() },
             channel = channel.value.trim().takeIf { it.isNotEmpty() },
+            iconEmoji = iconEmoji.value,
         )
         viewModelScope.launch {
             val idx = _editingIndex.value
@@ -337,6 +339,7 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
         nickname.value = bookmark.nickname
         password.value = bookmark.password ?: ""
         channel.value = bookmark.channel ?: ""
+        iconEmoji.value = bookmark.iconEmoji
         _editingIndex.value = index
     }
 
@@ -351,6 +354,7 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
         nickname.value = ""
         password.value = ""
         channel.value = ""
+        iconEmoji.value = null
     }
 
     fun browseChannels() {

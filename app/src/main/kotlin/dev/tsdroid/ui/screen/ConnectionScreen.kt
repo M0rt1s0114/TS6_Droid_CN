@@ -6,6 +6,8 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -49,6 +51,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
@@ -112,6 +115,7 @@ fun ConnectionScreen(
     val isBrowsing by viewModel.isBrowsing.collectAsStateWithLifecycle()
     val showChannelPicker by viewModel.showChannelPicker.collectAsStateWithLifecycle()
     val activeAddress by viewModel.activeAddress.collectAsStateWithLifecycle()
+    val selectedIconEmoji by viewModel.iconEmoji.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     var deleteConfirmIndex by remember { mutableStateOf<Int?>(null) }
     var showBottomSheet by remember { mutableStateOf(false) }
@@ -280,6 +284,11 @@ fun ConnectionScreen(
                                                         modifier = Modifier.size(32.dp),
                                                         contentScale = ContentScale.Fit,
                                                     )
+                                                } else if (!bookmark.iconEmoji.isNullOrEmpty()) {
+                                                    Text(
+                                                        text = bookmark.iconEmoji,
+                                                        style = MaterialTheme.typography.headlineSmall,
+                                                    )
                                                 } else {
                                                     Icon(
                                                         Icons.Outlined.Star,
@@ -374,22 +383,39 @@ fun ConnectionScreen(
                                     }
                                     Spacer(Modifier.height(10.dp))
 
-                                    Button(
-                                        onClick = {
-                                            if (active) viewModel.disconnectActive()
-                                            else viewModel.connectBookmark(bookmark, onConnected)
-                                        },
-                                        enabled = !isConnecting,
-                                        modifier = Modifier.fillMaxWidth(),
-                                    ) {
-                                        if (isConnecting && !active) {
-                                            CircularProgressIndicator(
-                                                modifier = Modifier.size(16.dp),
-                                                strokeWidth = 2.dp,
-                                            )
-                                            Spacer(Modifier.width(8.dp))
+                                    if (active) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        ) {
+                                            Button(
+                                                onClick = { onConnected() },
+                                                modifier = Modifier.weight(1f),
+                                            ) {
+                                                Text(stringResource(R.string.reenter))
+                                            }
+                                            OutlinedButton(
+                                                onClick = { viewModel.disconnectActive() },
+                                                modifier = Modifier.weight(1f),
+                                            ) {
+                                                Text(stringResource(R.string.disconnect))
+                                            }
                                         }
-                                        Text(stringResource(if (active) R.string.disconnect else R.string.connect))
+                                    } else {
+                                        Button(
+                                            onClick = { viewModel.connectBookmark(bookmark, onConnected) },
+                                            enabled = !isConnecting,
+                                            modifier = Modifier.fillMaxWidth(),
+                                        ) {
+                                            if (isConnecting) {
+                                                CircularProgressIndicator(
+                                                    modifier = Modifier.size(16.dp),
+                                                    strokeWidth = 2.dp,
+                                                )
+                                                Spacer(Modifier.width(8.dp))
+                                            }
+                                            Text(stringResource(R.string.connect))
+                                        }
                                     }
                                 }
                                 Spacer(Modifier.height(10.dp))
@@ -512,6 +538,41 @@ fun ConnectionScreen(
                             enabled = !isConnecting,
                             colors = glassTextFieldColors,
                         )
+
+                        val emojiOptions = remember {
+                            listOf("⭐", "🎮", "🎧", "💬", "🚀", "🔥", "🛡️", "📡", "🎵")
+                        }
+                        Text(
+                            stringResource(R.string.card_icon_label),
+                            style = MaterialTheme.typography.labelLarge,
+                        )
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            emojiOptions.forEach { emoji ->
+                                val selected = selectedIconEmoji == emoji
+                                Surface(
+                                    shape = CircleShape,
+                                    color = if (selected) MaterialTheme.colorScheme.primaryContainer
+                                    else MaterialTheme.colorScheme.surfaceContainerHigh,
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .clickable { viewModel.iconEmoji.value = emoji },
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Text(emoji, style = MaterialTheme.typography.titleMedium)
+                                    }
+                                }
+                            }
+                            if (selectedIconEmoji != null) {
+                                TextButton(onClick = { viewModel.iconEmoji.value = null }) {
+                                    Text(stringResource(R.string.clear))
+                                }
+                            }
+                        }
 
                         OutlinedTextField(
                             value = password,

@@ -461,6 +461,10 @@ class TsConnectionService : LifecycleService(), ViewModelStoreOwner, SavedStateR
             (address == null || tsClient.serverAddress == address)
     }
 
+    /** When the current connection was established, 0 if not connected. */
+    val connectionStartedAtMillis: Long
+        get() = connectionStartedAt
+
     /**
      * Starts microphone capture with the service scope, so the capture job
      * survives Activity/ViewModel recreation and keeps running with the

@@ -8,6 +8,8 @@ data class ServerBookmark(
     val channel: String? = null,
     val serverName: String? = null,
     val iconId: Long = 0,
+    // User-selected fallback icon shown until the real server icon is known.
+    val iconEmoji: String? = null,
     // Cached server snapshot for the home tiles; refreshed after every
     // successful connection.
     val platform: String? = null,

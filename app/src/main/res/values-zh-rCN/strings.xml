@@ -18,6 +18,8 @@
     <string name="server_address">服务器地址</string>
     <string name="server_address_placeholder">localhost:9987</string>
     <string name="current_nickname">当前昵称：%1$s</string>
+    <string name="card_icon_label">备用图标（可选）</string>
+    <string name="clear">清除</string>
     <string name="nickname">昵称</string>
     <string name="password_optional">密码（可选）</string>
     <string name="channel_optional">频道（可选）</string>
@@ -25,6 +27,7 @@
     <string name="browse_channels">浏览频道</string>
     <string name="connecting">正在连接…</string>
     <string name="connect">连接</string>
+    <string name="reenter">再次进入</string>
     <string name="add_bookmark">添加服务器</string>
     <string name="edit_bookmark">编辑服务器</string>
     <string name="save">保存</string>

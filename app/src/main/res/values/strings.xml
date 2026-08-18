@@ -18,6 +18,8 @@
     <string name="server_address">Adresse du serveur</string>
     <string name="server_address_placeholder">localhost:9987</string>
     <string name="current_nickname">Pseudo actuel : %1$s</string>
+    <string name="card_icon_label">Icône de secours (facultatif)</string>
+    <string name="clear">Effacer</string>
     <string name="nickname">Pseudo</string>
     <string name="password_optional">Mot de passe (optionnel)</string>
     <string name="channel_optional">Channel (optionnel)</string>
@@ -25,6 +27,7 @@
     <string name="browse_channels">Parcourir les channels</string>
     <string name="connecting">Connexion\u2026</string>
     <string name="connect">Se connecter</string>
+    <string name="reenter">Rejoindre</string>
     <string name="add_bookmark">Ajouter un favori</string>
     <string name="edit_bookmark">Modifier le favori</string>
     <string name="save">Enregistrer</string>

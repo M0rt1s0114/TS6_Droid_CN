@@ -134,6 +134,7 @@ class BookmarkStore(private val context: Context) {
                     channel = o.optString("channel", "").takeIf { it.isNotEmpty() && it != "null" },
                     serverName = o.optString("serverName", "").takeIf { it.isNotEmpty() && it != "null" },
                     iconId = o.optLong("iconId", 0),
+                    iconEmoji = o.optString("iconEmoji", "").takeIf { it.isNotEmpty() && it != "null" },
                     platform = o.optString("platform", "").takeIf { it.isNotEmpty() && it != "null" },
                     version = o.optString("version", "").takeIf { it.isNotEmpty() && it != "null" },
                     maxClients = o.optInt("maxClients", 0),
@@ -160,6 +161,7 @@ class BookmarkStore(private val context: Context) {
             o.put("channel", b.channel ?: org.json.JSONObject.NULL)
             o.put("serverName", b.serverName ?: org.json.JSONObject.NULL)
             o.put("iconId", b.iconId)
+            o.put("iconEmoji", b.iconEmoji ?: org.json.JSONObject.NULL)
             o.put("platform", b.platform ?: org.json.JSONObject.NULL)
             o.put("version", b.version ?: org.json.JSONObject.NULL)
             o.put("maxClients", b.maxClients)

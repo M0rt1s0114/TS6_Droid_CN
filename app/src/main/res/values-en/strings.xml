@@ -20,6 +20,7 @@
     <string name="browse_channels">Browse channels</string>
     <string name="connecting">Connecting\u2026</string>
     <string name="connect">Connect</string>
+    <string name="reenter">Re-enter</string>
     <string name="add_bookmark">Add bookmark</string>
     <string name="remove">Remove</string>
     <string name="select_channel">Select channel</string>
@@ -132,6 +133,8 @@
     <string name="channel_connection">Connection</string>
     <string name="server_address_placeholder">localhost:9987</string>
     <string name="current_nickname">Current nickname: %1$s</string>
+    <string name="card_icon_label">Fallback icon (optional)</string>
+    <string name="clear">Clear</string>
     <string name="edit_bookmark">Edit bookmark</string>
     <string name="save">Save</string>
     <string name="manual_connection">Manual connection</string>
