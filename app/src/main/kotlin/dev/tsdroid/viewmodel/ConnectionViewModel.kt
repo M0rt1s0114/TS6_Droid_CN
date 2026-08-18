@@ -92,8 +92,13 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
                         _connectionState.value = ConnectionState.DISCONNECTED
                         _activeAddress.value = null
                     }
+                } else if (_connectionState.value == ConnectionState.CONNECTED || _activeAddress.value != null) {
+                    // The service instance is gone (destroyed after disconnect
+                    // or killed by the system): clear stale green cards too.
+                    _connectionState.value = ConnectionState.DISCONNECTED
+                    _activeAddress.value = null
                 }
-                delay(1_000)
+                delay(500)
             }
         }
     }
