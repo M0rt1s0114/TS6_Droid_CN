@@ -28,7 +28,7 @@ private fun PreviewChatPanel() {
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    TabRow(
+                    PrimaryTabRow(
                         selectedTabIndex = 0,
                         modifier = Modifier.weight(1f),
                     ) {

@@ -53,12 +53,12 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -80,6 +80,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
@@ -147,13 +148,14 @@ fun ServerScreen(
     // Resolve pmTarget User from users list
     val pmTarget = pmTargetId?.let { id -> users.find { it.id == id } }
 
-    // Build PM conversation user list (id 鈫?name) from message map + users list
+    // Build PM conversation user list (id → name) from message map + users list
     val context = LocalContext.current
+    val resources = LocalResources.current
     val pmConversationUsers = remember(privateMessages, users) {
         privateMessages.keys.map { userId ->
             val name = users.find { it.id == userId }?.nickname
                 ?: privateMessages[userId]?.lastOrNull { !it.isMe }?.sender
-                ?: context.getString(R.string.user_fallback, userId)
+                ?: resources.getString(R.string.user_fallback, userId)
             userId to name
         }
     }
@@ -577,7 +579,7 @@ fun ChatPanel(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                TabRow(
+                PrimaryTabRow(
                     selectedTabIndex = chatTab,
                     modifier = Modifier.weight(1f),
                     containerColor = Color.Transparent,

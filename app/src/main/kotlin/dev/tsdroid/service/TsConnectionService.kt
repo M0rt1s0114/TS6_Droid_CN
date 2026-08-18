@@ -378,7 +378,7 @@ class TsConnectionService : LifecycleService(), ViewModelStoreOwner, SavedStateR
             instance = this
         }
         
-        when (intent?.action) {
+        when (intent.action) {
             ACTION_DISCONNECT -> {
                 disconnect()
             }

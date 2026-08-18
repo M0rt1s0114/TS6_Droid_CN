@@ -3,8 +3,8 @@ package dev.tsdroid.ui.component
 import android.content.Context
 import android.graphics.BitmapFactory
 import android.graphics.drawable.BitmapDrawable
-import coil.request.ImageResult
-import coil.request.SuccessResult
+import coil3.request.ImageResult
+import coil3.request.SuccessResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File

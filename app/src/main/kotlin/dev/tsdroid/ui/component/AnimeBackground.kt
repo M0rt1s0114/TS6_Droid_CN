@@ -3,7 +3,6 @@ package dev.tsdroid.ui.component
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.graphics.drawable.BitmapDrawable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -20,9 +19,10 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import coil.compose.AsyncImage
-import coil.request.ImageResult
-import coil.request.SuccessResult
+import coil3.BitmapImage
+import coil3.compose.AsyncImage
+import coil3.request.ImageResult
+import coil3.request.SuccessResult
 import dev.tsdroid.background.CustomBackgroundManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -35,7 +35,7 @@ object AnimeWallpaperState {
     val dominantColor = mutableStateOf<Color?>(null)
 
     /** Average relative luminance of the current wallpaper, 0 = black, 1 = white. */
-    val backgroundLuminance = mutableStateOf(0.5f)
+    val backgroundLuminance = mutableFloatStateOf(0.5f)
 
     /** Best readable text color directly on top of the current wallpaper. */
     val recommendedContentColor = mutableStateOf<Color?>(null)
@@ -141,8 +141,8 @@ object AnimeWallpaperState {
 
     fun extractDominantColor(result: ImageResult) {
         if (result !is SuccessResult) return
-        val bitmap = when (val drawable = result.drawable) {
-            is BitmapDrawable -> drawable.bitmap
+        val bitmap = when (val image = result.image) {
+            is BitmapImage -> image.bitmap
             else -> return
         }
         extractColorFromBitmap(bitmap)
