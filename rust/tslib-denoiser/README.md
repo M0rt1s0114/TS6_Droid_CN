@@ -5,11 +5,13 @@ speech denoising (DPDFNet 48 kHz model) for TS6_Droid_CN.
 
 Kotlin side: `dev.tslib.AudioDenoiser`.
 
-## Pass-through first
+## Streaming behavior
 
-`ENABLE_ACTUAL_DENOISE` in `src/lib.rs` is currently `false`; the JNI layer
-returns the input PCM untouched. Flip it after the Kotlin streaming buffer is
-validated on device.
+`ENABLE_ACTUAL_DENOISE` in `src/lib.rs` is `true`. The library feeds the
+denoiser in its preferred frame-shift chunks and buffers produced samples, so
+every `process()` call returns exactly as many samples as it received. The
+first frames pass through untouched while the model fills its lookahead
+buffer; if model loading or inference fails, the handle stays in bypass mode.
 
 ## Build (Windows)
 

@@ -20,5 +20,8 @@ app/src/main/jniLibs/
 .DS_Store
 Thumbs.db
 
+# Rust denoiser build output
+rust/tslib-denoiser/target/
+
 # TeamSpeak SDK (downloaded binary)
 teamspeak-sdk-3.5.0/

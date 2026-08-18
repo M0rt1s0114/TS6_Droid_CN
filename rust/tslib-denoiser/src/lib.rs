@@ -1,5 +1,7 @@
 #![allow(non_snake_case)]
 
+use std::collections::VecDeque;
+
 use jni::objects::{JByteArray, JClass, JString};
 use jni::sys::{jboolean, jbyteArray, jint, jlong};
 use jni::JNIEnv;
@@ -9,13 +11,17 @@ use sherpa_onnx::{
     OnlineSpeechDenoiser, OnlineSpeechDenoiserConfig,
 };
 
-/// Set to `true` once the streaming-output buffering in the Kotlin layer is
-/// ready. Until then the JNI path returns the input PCM untouched so we can
-/// prove that create/process/destroy and the asset-copy pipeline are stable.
-const ENABLE_ACTUAL_DENOISE: bool = false;
+/// Streaming is handled inside this library now: input frames are split into
+/// the model's preferred frame shift and produced audio is queued so every
+/// `process()` call returns exactly the number of samples it received.
+const ENABLE_ACTUAL_DENOISE: bool = true;
 
 pub struct AudioDenoiserHandle {
     denoiser: Option<OnlineSpeechDenoiser>,
+    input_queue: VecDeque<f32>,
+    output_queue: VecDeque<i16>,
+    frame_shift: usize,
+    started: bool,
 }
 
 #[unsafe(no_mangle)]
@@ -95,7 +101,13 @@ pub extern "system" fn Java_dev_tslib_AudioDenoiser_nativeCreate(
         None
     };
 
-    Box::into_raw(Box::new(AudioDenoiserHandle { denoiser })) as jlong
+    Box::into_raw(Box::new(AudioDenoiserHandle {
+        denoiser,
+        input_queue: VecDeque::new(),
+        output_queue: VecDeque::new(),
+        frame_shift: 0,
+        started: false,
+    })) as jlong
 }
 
 /// `AudioDenoiser.nativeProcess(ptr, pcm)` — denoise 16-bit LE PCM.
@@ -123,7 +135,7 @@ pub extern "system" fn Java_dev_tslib_AudioDenoiser_nativeProcess<'local>(
             .unwrap_or(std::ptr::null_mut());
     }
 
-    // Actual denoise path (disabled until Kotlin buffering is ready).
+    // Actual denoise path with streaming buffering.
     if pcm_bytes.len() % 2 != 0 {
         throw_runtime(&mut env, "PCM data must have even length (16-bit samples)");
         return std::ptr::null_mut();
@@ -133,29 +145,64 @@ pub extern "system" fn Java_dev_tslib_AudioDenoiser_nativeProcess<'local>(
         .chunks_exact(2)
         .map(|chunk| i16::from_le_bytes([chunk[0], chunk[1]]))
         .collect();
-    let samples_f32: Vec<f32> = samples_i16
-        .iter()
-        .map(|sample| f32::from(*sample) / 32768.0)
-        .collect();
-
-    let denoiser = handle.denoiser.as_ref().expect("checked above");
-    let output = denoiser.run(&samples_f32, 48_000);
-
-    if output.samples.is_empty() {
+    let frame_len = samples_i16.len();
+    if frame_len == 0 {
         return env
             .byte_array_from_slice(&pcm_bytes)
             .map(|array| array.into_raw())
             .unwrap_or(std::ptr::null_mut());
     }
 
-    let output_bytes: Vec<u8> = output
-        .samples
-        .iter()
-        .map(|sample| (sample * 32768.0).clamp(-32768.0, 32767.0) as i16)
-        .flat_map(i16::to_le_bytes)
-        .collect();
+    let AudioDenoiserHandle {
+        denoiser,
+        input_queue,
+        output_queue,
+        frame_shift,
+        started,
+    } = handle;
+    let denoiser = denoiser.as_ref().expect("checked above");
+    let sample_rate = denoiser.sample_rate().max(8_000);
+    let shift = if *frame_shift > 0 {
+        *frame_shift
+    } else {
+        let shift = denoiser.frame_shift_in_samples().max(1) as usize;
+        *frame_shift = shift;
+        shift
+    };
 
-    env.byte_array_from_slice(&output_bytes)
+    for sample in &samples_i16 {
+        input_queue.push_back(f32::from(*sample) / 32768.0);
+    }
+
+    while input_queue.len() >= shift {
+        let chunk: Vec<f32> = input_queue.drain(..shift).collect();
+        let output = denoiser.run(&chunk, sample_rate);
+        for sample in output.samples {
+            let sample = (sample * 32768.0).clamp(-32768.0, 32767.0) as i16;
+            output_queue.push_back(sample);
+        }
+    }
+
+    if output_queue.len() >= frame_len {
+        if !*started {
+            *started = true;
+            log::info!(
+                "denoiser streaming started: frame={frame_len} samples, model_shift={shift}, sample_rate={sample_rate}"
+            );
+        }
+        let output_bytes: Vec<u8> = output_queue
+            .drain(..frame_len)
+            .flat_map(i16::to_le_bytes)
+            .collect();
+        return env
+            .byte_array_from_slice(&output_bytes)
+            .map(|array| array.into_raw())
+            .unwrap_or(std::ptr::null_mut());
+    }
+
+    // Model lookahead has not produced audio yet; return the original frame
+    // so the caller always receives its expected frame size.
+    env.byte_array_from_slice(&pcm_bytes)
         .map(|array| array.into_raw())
         .unwrap_or(std::ptr::null_mut())
 }
