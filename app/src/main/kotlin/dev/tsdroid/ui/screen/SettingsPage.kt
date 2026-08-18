@@ -124,14 +124,21 @@ fun SettingsPage(
                 // 主题模式
                 SettingsClickableRow(
                     label = stringResource(R.string.theme_mode),
+                    onClick = { themeMenuExpanded = true },
                     trailing = {
                         Box {
-                            Text(
-                                text = selectedThemeLabel,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.clickable { themeMenuExpanded = true },
-                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = selectedThemeLabel,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                                Icon(
+                                    Icons.AutoMirrored.Filled.NavigateNext,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
                             DropdownMenu(
                                 expanded = themeMenuExpanded,
                                 onDismissRequest = { themeMenuExpanded = false },
@@ -252,14 +259,21 @@ fun SettingsPage(
                 // 语言切换
                 SettingsClickableRow(
                     label = stringResource(R.string.language_change_title),
+                    onClick = { languageMenuExpanded = true },
                     trailing = {
                         Box {
-                            Text(
-                                text = selectedLanguageLabel,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.clickable { languageMenuExpanded = true },
-                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = selectedLanguageLabel,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                                Icon(
+                                    Icons.AutoMirrored.Filled.NavigateNext,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
                             DropdownMenu(
                                 expanded = languageMenuExpanded,
                                 onDismissRequest = { languageMenuExpanded = false },
