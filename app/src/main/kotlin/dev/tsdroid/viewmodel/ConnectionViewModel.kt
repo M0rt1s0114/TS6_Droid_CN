@@ -23,7 +23,6 @@ import dev.tslib.ChannelTree
 import dev.tslib.Client
 import dev.tslib.ConnectionState
 import dev.tslib.Identity
-import dev.tslib.ServerInfo
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -41,7 +40,6 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
     companion object {
         private const val TAG = "ConnectionViewModel"
         private const val MIN_NICKNAME_LENGTH = 3
-        private const val BOOKMARK_REFRESH_COOLDOWN_MS = 2_000L
         /** Survit aux recréations du ViewModel dans le même processus. */
         private var autoReconnectAttempted = false
     }
@@ -103,9 +101,10 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
     private val _connectionState = MutableStateFlow(ConnectionState.DISCONNECTED)
     val connectionState: StateFlow<Int> = _connectionState.asStateFlow()
 
-    private val _refreshingBookmarks = MutableStateFlow(false)
-    val refreshingBookmarks: StateFlow<Boolean> = _refreshingBookmarks.asStateFlow()
-    private var lastBookmarkRefreshAt = 0L
+    private val _activeAddress = MutableStateFlow<String?>(null)
+    val activeAddress: StateFlow<String?> = _activeAddress.asStateFlow()
+
+    private var resumeAttempted = false
 
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
@@ -156,6 +155,7 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
         val existingService = TsConnectionService.instance
         if (existingService?.hasActiveConnection(addr) == true) {
             _connectionState.value = ConnectionState.CONNECTED
+            _activeAddress.value = addr
             _error.value = null
             onConnected()
             return
@@ -228,9 +228,11 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
 
                 if (connectionFailure == null) {
                     _connectionState.value = ConnectionState.CONNECTED
+                    _activeAddress.value = addr
                     onConnected()
                 } else {
                     _connectionState.value = ConnectionState.DISCONNECTED
+                    _activeAddress.value = null
                     _error.value = connectionFailure.message
                         ?: context.getString(R.string.connection_failed)
                 }
@@ -244,13 +246,32 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     fun resumeExistingConnection(onConnected: () -> Unit): Boolean {
+        if (resumeAttempted) {
+            // Returning from the server screen: keep the connection visible
+            // on the home cards, but do not auto-navigate again.
+            val service = TsConnectionService.instance
+            if (service?.hasActiveConnection() == true) {
+                _connectionState.value = ConnectionState.CONNECTED
+                _activeAddress.value = service.tsClient.serverAddress
+            }
+            return false
+        }
+
+        resumeAttempted = true
         val service = TsConnectionService.instance ?: return false
         if (!service.hasActiveConnection()) return false
 
         _connectionState.value = ConnectionState.CONNECTED
+        _activeAddress.value = service.tsClient.serverAddress
         _error.value = null
         onConnected()
         return true
+    }
+
+    fun disconnectActive() {
+        TsConnectionService.instance?.disconnect()
+        _connectionState.value = ConnectionState.DISCONNECTED
+        _activeAddress.value = null
     }
 
     fun connectBookmark(bookmark: ServerBookmark, onConnected: () -> Unit) {
@@ -415,65 +436,6 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
     fun clearError() {
         _error.value = null
     }
-
-    /**
-     * Refreshes cached server stats for every bookmark by making a short
-     * lightweight connection, reading ServerInfo, and disconnecting again.
-     * Cooldown: at most one run every 2 seconds.
-     */
-    fun refreshBookmarkInfo() {
-        val now = System.currentTimeMillis()
-        if (_refreshingBookmarks.value || now - lastBookmarkRefreshAt < BOOKMARK_REFRESH_COOLDOWN_MS) return
-        lastBookmarkRefreshAt = now
-        _refreshingBookmarks.value = true
-        viewModelScope.launch {
-            try {
-                val list = bookmarkStore.bookmarks.first()
-                for (bookmark in list) {
-                    try {
-                        val info = probeServerInfo(bookmark)
-                        if (info != null) {
-                            bookmarkStore.updateServerInfo(bookmark.address, info)
-                        }
-                    } catch (e: Exception) {
-                        Log.w(TAG, "Refresh failed for ${bookmark.address}", e)
-                    }
-                }
-            } finally {
-                _refreshingBookmarks.value = false
-            }
-        }
-    }
-
-    private suspend fun probeServerInfo(bookmark: ServerBookmark): ServerInfo? =
-        withContext(Dispatchers.IO) {
-            var client: Client? = null
-            try {
-                val identity = getOrCreateIdentity()
-                identity.setNickname(bookmark.nickname)
-                val c = Client(bookmark.address, identity, bookmark.nickname, bookmark.password, null)
-                client = c
-                c.waitConnected()
-                // Give the state pump a short window so ServerInfo is populated.
-                val deadline = System.currentTimeMillis() + 3_000
-                while (System.currentTimeMillis() < deadline && c.serverInfo == null) {
-                    c.processEvents()
-                    Thread.sleep(20)
-                }
-                c.serverInfo
-            } catch (e: Throwable) {
-                if (e is CancellationException) throw e
-                Log.w(TAG, "Probe failed for ${bookmark.address}", e)
-                null
-            } finally {
-                client?.let {
-                    try {
-                        it.close()
-                    } catch (_: Exception) {
-                    }
-                }
-            }
-        }
 
     private fun disconnectAndClose(client: Client) {
         try {

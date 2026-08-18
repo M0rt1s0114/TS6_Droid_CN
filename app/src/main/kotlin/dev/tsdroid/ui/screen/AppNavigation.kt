@@ -12,17 +12,13 @@ fun AppNavigation() {
     NavHost(navController = navController, startDestination = "connection") {
         composable("connection") {
             ConnectionScreen(
-                onConnected = { navController.navigate("server") {
-                    popUpTo("connection") { inclusive = true }
-                }},
+                onConnected = { navController.navigate("server") },
                 onNavigateToAbout = { navController.navigate("about") }
             )
         }
         composable("server") {
             ServerScreen(
-                onDisconnected = { navController.navigate("connection") {
-                    popUpTo("server") { inclusive = true }
-                }},
+                onDisconnected = { navController.popBackStack() },
                 onNavigateToAbout = { navController.navigate("about") }
             )
         }

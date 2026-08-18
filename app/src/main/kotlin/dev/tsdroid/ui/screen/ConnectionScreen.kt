@@ -29,7 +29,6 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
@@ -112,7 +111,7 @@ fun ConnectionScreen(
     val browsedChannels by viewModel.browsedChannels.collectAsStateWithLifecycle()
     val isBrowsing by viewModel.isBrowsing.collectAsStateWithLifecycle()
     val showChannelPicker by viewModel.showChannelPicker.collectAsStateWithLifecycle()
-    val refreshingBookmarks by viewModel.refreshingBookmarks.collectAsStateWithLifecycle()
+    val activeAddress by viewModel.activeAddress.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     var deleteConfirmIndex by remember { mutableStateOf<Int?>(null) }
     var showBottomSheet by remember { mutableStateOf(false) }
@@ -163,30 +162,10 @@ fun ConnectionScreen(
                 }
                 TopAppBar(
                     title = {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = if (selectedTab == 0) stringResource(R.string.app_name)
-                                       else stringResource(R.string.tab_settings)
-                            )
-                            Spacer(Modifier.width(8.dp))
-                            if (selectedTab == 0) {
-                                IconButton(
-                                    onClick = { viewModel.refreshBookmarkInfo() },
-                                    enabled = !refreshingBookmarks,
-                                    modifier = Modifier.size(32.dp),
-                                ) {
-                                    if (refreshingBookmarks) {
-                                        CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
-                                    } else {
-                                        Icon(
-                                            Icons.Default.Refresh,
-                                            contentDescription = stringResource(R.string.refresh),
-                                            tint = adaptiveTopBarColor,
-                                        )
-                                    }
-                                }
-                            }
-                        }
+                        Text(
+                            text = if (selectedTab == 0) stringResource(R.string.app_name)
+                                   else stringResource(R.string.tab_settings)
+                        )
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = Color.Transparent,
@@ -276,8 +255,7 @@ fun ConnectionScreen(
                         ) {
                             bookmarks.forEachIndexed { index, bookmark ->
                                 val icon = if (bookmark.iconId != 0L) bookmarkIcons[bookmark.iconId] else null
-                                val active = dev.tsdroid.service.TsConnectionService.instance
-                                    ?.hasActiveConnection(bookmark.address) == true
+                                val active = activeAddress == bookmark.address
                                 val statusColor = when {
                                     active -> Color(0xFF4CAF50)
                                     bookmark.lastSeenAt > 0 -> Color(0xFFFFB300)
@@ -332,6 +310,13 @@ fun ConnectionScreen(
                                                 text = bookmark.address,
                                                 style = MaterialTheme.typography.bodySmall,
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis,
+                                            )
+                                            Text(
+                                                text = stringResource(R.string.current_nickname, bookmark.nickname),
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.primary,
                                                 maxLines = 1,
                                                 overflow = TextOverflow.Ellipsis,
                                             )
@@ -390,18 +375,21 @@ fun ConnectionScreen(
                                     Spacer(Modifier.height(10.dp))
 
                                     Button(
-                                        onClick = { viewModel.connectBookmark(bookmark, onConnected) },
+                                        onClick = {
+                                            if (active) viewModel.disconnectActive()
+                                            else viewModel.connectBookmark(bookmark, onConnected)
+                                        },
                                         enabled = !isConnecting,
                                         modifier = Modifier.fillMaxWidth(),
                                     ) {
-                                        if (isConnecting) {
+                                        if (isConnecting && !active) {
                                             CircularProgressIndicator(
                                                 modifier = Modifier.size(16.dp),
                                                 strokeWidth = 2.dp,
                                             )
                                             Spacer(Modifier.width(8.dp))
                                         }
-                                        Text(stringResource(R.string.connect))
+                                        Text(stringResource(if (active) R.string.disconnect else R.string.connect))
                                     }
                                 }
                                 Spacer(Modifier.height(10.dp))

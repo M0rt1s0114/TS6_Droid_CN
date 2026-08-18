@@ -17,6 +17,7 @@
     <!-- ConnectionScreen -->
     <string name="server_address">Adresse du serveur</string>
     <string name="server_address_placeholder">localhost:9987</string>
+    <string name="current_nickname">Pseudo actuel : %1$s</string>
     <string name="nickname">Pseudo</string>
     <string name="password_optional">Mot de passe (optionnel)</string>
     <string name="channel_optional">Channel (optionnel)</string>

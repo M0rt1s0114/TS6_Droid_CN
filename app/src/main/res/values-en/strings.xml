@@ -131,6 +131,7 @@
     <string name="app_name">TS6 Droid</string>
     <string name="channel_connection">Connection</string>
     <string name="server_address_placeholder">localhost:9987</string>
+    <string name="current_nickname">Current nickname: %1$s</string>
     <string name="edit_bookmark">Edit bookmark</string>
     <string name="save">Save</string>
     <string name="manual_connection">Manual connection</string>

@@ -17,6 +17,7 @@
     <!-- ConnectionScreen -->
     <string name="server_address">服务器地址</string>
     <string name="server_address_placeholder">localhost:9987</string>
+    <string name="current_nickname">当前昵称：%1$s</string>
     <string name="nickname">昵称</string>
     <string name="password_optional">密码（可选）</string>
     <string name="channel_optional">频道（可选）</string>
