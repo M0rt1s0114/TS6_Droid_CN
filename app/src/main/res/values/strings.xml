@@ -166,4 +166,8 @@
     <string name="about_contributors_title">Contributeurs</string>
     <string name="about_contributions_count">%1$d contributions</string>
     <string name="contributors_load_error">Échec du chargement</string>
+
+    <!-- Connection errors -->
+    <string name="error_overlay_permission_required">Veuillez autoriser l\'affichage au-dessus des autres applications pour utiliser la fenêtre flottante.</string>
+    <string name="error_service_start_failed">Échec du démarrage du service en arrière-plan.</string>
 </resources>

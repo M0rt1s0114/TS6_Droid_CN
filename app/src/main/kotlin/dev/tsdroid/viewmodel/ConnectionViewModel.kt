@@ -1,12 +1,8 @@
 package dev.tsdroid.viewmodel
 
 import android.app.Application
-import android.content.ComponentName
-import android.content.Context
 import android.content.Intent
-import android.content.ServiceConnection
 import android.graphics.BitmapFactory
-import android.os.IBinder
 import android.provider.Settings
 import android.util.Log
 import androidx.core.content.ContextCompat
@@ -20,14 +16,16 @@ import dev.tsdroid.bridge.nicknameWithCollisionSuffix
 import dev.tsdroid.han.R
 import dev.tsdroid.data.BookmarkStore
 import dev.tsdroid.data.ServerBookmark
+import dev.tsdroid.data.SettingsStore
 import dev.tsdroid.service.TsConnectionService
 import dev.tslib.Channel
 import dev.tslib.ChannelTree
 import dev.tslib.Client
 import dev.tslib.ConnectionState
 import dev.tslib.Identity
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -47,6 +45,7 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     private val bookmarkStore = BookmarkStore(application)
+    private val settingsStore = SettingsStore(application)
 
     val bookmarks: StateFlow<List<ServerBookmark>> = bookmarkStore.bookmarks
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
@@ -105,7 +104,6 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
 
-    private var serviceConnection: ServiceConnection? = null
     private var connectJob: kotlinx.coroutines.Job? = null
     private var cloneBypassIdentity: Identity? = null
 
@@ -162,40 +160,55 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
 
         val context = getApplication<Application>()
 
-        // Check for overlay permission before starting the service
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M && !Settings.canDrawOverlays(context)) {
-            _connectionState.value = ConnectionState.DISCONNECTED
-            _error.value = "Please grant the 'Display over other apps' permission to use the floating window."
-            val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, android.net.Uri.parse("package:${context.packageName}"))
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            context.startActivity(intent)
-            return
-        }
-
-        try {
-            val intent = Intent(context, TsConnectionService::class.java)
-            ContextCompat.startForegroundService(context, intent)
-        } catch (e: Exception) {
-            _connectionState.value = ConnectionState.DISCONNECTED
-            _error.value = e.message ?: getApplication<Application>().getString(R.string.connection_failed)
-            return
-        }
-
         // Cancel any previous connection attempt to avoid stale collectors
         connectJob?.cancel()
 
-        // Wait for the service instance to be available
         connectJob = viewModelScope.launch {
+            // The floating window is an optional feature: only require overlay
+            // permission when the user actually enabled it in settings.
+            val overlayEnabled = try {
+                settingsStore.enableFloatingWindow.first()
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                Log.w(TAG, "Failed to read floating window setting; assuming enabled", e)
+                true
+            }
+            if (
+                overlayEnabled &&
+                android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M &&
+                !Settings.canDrawOverlays(context)
+            ) {
+                _connectionState.value = ConnectionState.DISCONNECTED
+                _error.value = context.getString(R.string.error_overlay_permission_required)
+                val intent = Intent(
+                    Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                    android.net.Uri.parse("package:${context.packageName}"),
+                )
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                context.startActivity(intent)
+                return@launch
+            }
+
+            try {
+                val intent = Intent(context, TsConnectionService::class.java)
+                ContextCompat.startForegroundService(context, intent)
+            } catch (e: Exception) {
+                _connectionState.value = ConnectionState.DISCONNECTED
+                _error.value = e.message ?: context.getString(R.string.error_service_start_failed)
+                return@launch
+            }
+
+            // Wait for the service instance to be available
             var attempts = 0
             while (TsConnectionService.instance == null && attempts < 50) {
-                kotlinx.coroutines.delay(100)
+                delay(100)
                 attempts++
             }
 
             val service = TsConnectionService.instance
             if (service == null) {
                 _connectionState.value = ConnectionState.DISCONNECTED
-                _error.value = "Failed to start background service."
+                _error.value = context.getString(R.string.error_service_start_failed)
                 return@launch
             }
 
@@ -214,13 +227,13 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
                 } else {
                     _connectionState.value = ConnectionState.DISCONNECTED
                     _error.value = connectionFailure.message
-                        ?: getApplication<Application>().getString(R.string.connection_failed)
+                        ?: context.getString(R.string.connection_failed)
                 }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 _connectionState.value = ConnectionState.DISCONNECTED
-                _error.value = e.message ?: getApplication<Application>().getString(R.string.connection_failed)
+                _error.value = e.message ?: context.getString(R.string.connection_failed)
             }
         }
     }
@@ -468,11 +481,7 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     override fun onCleared() {
-        serviceConnection?.let {
-            try {
-                getApplication<Application>().unbindService(it)
-            } catch (_: Exception) {}
-        }
+        connectJob?.cancel()
         super.onCleared()
     }
 }

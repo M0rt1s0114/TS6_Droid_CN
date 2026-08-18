@@ -165,4 +165,8 @@
     <string name="about_contributors_title">贡献者</string>
     <string name="about_contributions_count">%1$d 次贡献</string>
     <string name="contributors_load_error">加载失败</string>
+
+    <!-- Connection errors -->
+    <string name="error_overlay_permission_required">请授予「显示在其他应用上层」权限以使用悬浮窗。</string>
+    <string name="error_service_start_failed">后台服务启动失败。</string>
 </resources>

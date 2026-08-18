@@ -125,4 +125,8 @@
     <string name="about_contributors_title">Contributors</string>
     <string name="about_contributions_count">%1$d contributions</string>
     <string name="contributors_load_error">Failed to load</string>
+
+    <!-- Connection errors -->
+    <string name="error_overlay_permission_required">Please grant the \"Display over other apps\" permission to use the floating window.</string>
+    <string name="error_service_start_failed">Failed to start background service.</string>
 </resources>
