@@ -17,6 +17,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.NavigateNext
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Forum
+import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.MoreHoriz
+import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.window.Dialog
@@ -35,6 +39,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import dev.tsdroid.data.SettingsStore
 import dev.tsdroid.han.R
+import dev.tsdroid.ui.component.FloatingTile
 import kotlinx.coroutines.launch
 
 @Composable
@@ -108,13 +113,13 @@ fun SettingsPage(
             .padding(horizontal = 16.dp, vertical = 8.dp),
     ) {
         // ── 外观 ──
-        Card(
+        FloatingTile(
             modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.92f)),
-            shape = MaterialTheme.shapes.large,
+            cornerRadius = 24,
+            contentPadding = 6,
         ) {
             Column(modifier = Modifier.padding(vertical = 4.dp)) {
-                SettingsSectionTitle(stringResource(R.string.section_appearance))
+                SettingsSectionTitle(stringResource(R.string.section_appearance), Icons.Default.Palette)
 
                 // 主题模式
                 SettingsClickableRow(
@@ -164,16 +169,16 @@ fun SettingsPage(
             }
         }
 
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(16.dp))
 
         // ── 音频 ──
-        Card(
+        FloatingTile(
             modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.92f)),
-            shape = MaterialTheme.shapes.large,
+            cornerRadius = 24,
+            contentPadding = 6,
         ) {
             Column(modifier = Modifier.padding(vertical = 4.dp)) {
-                SettingsSectionTitle(stringResource(R.string.section_audio))
+                SettingsSectionTitle(stringResource(R.string.section_audio), Icons.Default.Mic)
 
                 // 音量增益
                 Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
@@ -199,16 +204,16 @@ fun SettingsPage(
             }
         }
 
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(16.dp))
 
         // ── 聊天 ──
-        Card(
+        FloatingTile(
             modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.92f)),
-            shape = MaterialTheme.shapes.large,
+            cornerRadius = 24,
+            contentPadding = 6,
         ) {
             Column(modifier = Modifier.padding(vertical = 4.dp)) {
-                SettingsSectionTitle(stringResource(R.string.section_chat))
+                SettingsSectionTitle(stringResource(R.string.section_chat), Icons.Default.Forum)
 
                 SettingsSwitchRow(
                     label = stringResource(R.string.auto_reconnect),
@@ -228,16 +233,16 @@ fun SettingsPage(
             }
         }
 
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(16.dp))
 
         // ── 更多 ──
-        Card(
+        FloatingTile(
             modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.92f)),
-            shape = MaterialTheme.shapes.large,
+            cornerRadius = 24,
+            contentPadding = 6,
         ) {
             Column(modifier = Modifier.padding(vertical = 4.dp)) {
-                SettingsSectionTitle(stringResource(R.string.section_more))
+                SettingsSectionTitle(stringResource(R.string.section_more), Icons.Default.MoreHoriz)
 
                 // 语言切换
                 SettingsClickableRow(
@@ -303,13 +308,24 @@ fun SettingsPage(
 // ── 可复用组件 ──
 
 @Composable
-private fun SettingsSectionTitle(text: String) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.labelLarge,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-    )
+private fun SettingsSectionTitle(text: String, icon: androidx.compose.ui.graphics.vector.ImageVector) {
+    Row(
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            modifier = Modifier.size(18.dp),
+            tint = MaterialTheme.colorScheme.primary,
+        )
+        Spacer(Modifier.width(8.dp))
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.primary,
+        )
+    }
 }
 
 @Composable
@@ -321,7 +337,7 @@ private fun SettingsSwitchRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 10.dp),
+            .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
@@ -345,7 +361,7 @@ private fun SettingsClickableRow(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() }
-            .padding(horizontal = 16.dp, vertical = 14.dp),
+            .padding(horizontal = 16.dp, vertical = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(text = label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))

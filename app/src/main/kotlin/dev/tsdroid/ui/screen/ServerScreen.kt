@@ -29,12 +29,15 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.ChatBubble
 import androidx.compose.material.icons.filled.Close
@@ -572,6 +575,8 @@ fun ServerScreen(
                         privateMessages = pmTargetId?.let { id ->
                             privateMessages[id] ?: emptyList()
                         } ?: privateMessages.values.flatten().sortedBy { it.timestamp },
+                        privateMessagesByUser = privateMessages,
+                        userAvatars = userAvatars,
                         messageText = messageText,
                         onMessageChange = { messageText = it },
                         pmTarget = pmTarget,
@@ -639,6 +644,8 @@ fun ChatPanel(
     onTabChange: (Int) -> Unit,
     channelMessages: List<ChatMessage>,
     privateMessages: List<ChatMessage>,
+    privateMessagesByUser: Map<Int, List<ChatMessage>> = emptyMap(),
+    userAvatars: Map<String, ImageBitmap> = emptyMap(),
     messageText: String,
     onMessageChange: (String) -> Unit,
     pmTarget: User?,
@@ -681,112 +688,137 @@ fun ChatPanel(
                 .fillMaxSize()
                 .navigationBarsPadding()
                 .padding(8.dp),
-        ) {
-            // Header: tabs + close
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
             ) {
-                PrimaryTabRow(
-                    selectedTabIndex = chatTab,
-                    modifier = Modifier.weight(1f),
-                    containerColor = Color.Transparent,
-                ) {
-                    Tab(
-                        selected = chatTab == 0,
-                        onClick = { onTabChange(0) },
-                        text = {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(stringResource(R.string.tab_channel))
-                                if (unreadChannel > 0) {
-                                    Spacer(Modifier.width(4.dp))
-                                    Badge { Text("$unreadChannel") }
-                                }
-                            }
-                        },
-                    )
-                    Tab(
-                        selected = chatTab == 1,
-                        onClick = { onTabChange(1) },
-                        text = {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(stringResource(R.string.tab_private))
-                                if (unreadPrivateTotal > 0) {
-                                    Spacer(Modifier.width(4.dp))
-                                    Badge { Text("$unreadPrivateTotal") }
-                                }
-                            }
-                        },
-                    )
-                }
-                IconButton(onClick = onClose) {
-                    Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close))
-                }
-            }
-
-            // PM conversation selector
-            if (chatTab == 1 && pmConversationUsers.isNotEmpty()) {
+            // Header: conversation view or tabs
+            if (chatTab == 1 && pmTarget != null) {
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState())
-                        .padding(vertical = 4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    // "All" chip
-                    FilterChip(
-                        selected = pmTarget == null,
-                        onClick = { onClearPmTarget() },
-                        label = { Text(stringResource(R.string.filter_all)) },
-                        leadingIcon = if (pmTarget == null) {
-                            { Icon(Icons.Default.ChatBubble, null, Modifier.size(16.dp)) }
-                        } else null,
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                        ),
+                    IconButton(onClick = onClearPmTarget) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.about_back),
+                        )
+                    }
+                    Text(
+                        text = pmTarget.nickname,
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.weight(1f),
                     )
-                    // One chip per conversation user
-                    pmConversationUsers.forEach { (userId, nickname) ->
-                        val isSelected = pmTarget?.id == userId
-                        val userUnread = unreadPrivatePerUser[userId] ?: 0
-                        FilterChip(
-                            selected = isSelected,
-                            onClick = { onSelectPmUser(userId) },
-                            label = {
+                    IconButton(onClick = onClose) {
+                        Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close))
+                    }
+                }
+            } else {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    PrimaryTabRow(
+                        selectedTabIndex = chatTab,
+                        modifier = Modifier.weight(1f),
+                        containerColor = Color.Transparent,
+                    ) {
+                        Tab(
+                            selected = chatTab == 0,
+                            onClick = { onTabChange(0) },
+                            text = {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(nickname)
-                                    if (userUnread > 0) {
+                                    Text(stringResource(R.string.tab_channel))
+                                    if (unreadChannel > 0) {
                                         Spacer(Modifier.width(4.dp))
-                                        Badge { Text("$userUnread") }
+                                        Badge { Text("$unreadChannel") }
                                     }
                                 }
                             },
-                            leadingIcon = if (isSelected) {
-                                { Icon(Icons.Default.Person, null, Modifier.size(16.dp)) }
-                            } else null,
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
-                            ),
                         )
+                        Tab(
+                            selected = chatTab == 1,
+                            onClick = { onTabChange(1) },
+                            text = {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(stringResource(R.string.tab_private))
+                                    if (unreadPrivateTotal > 0) {
+                                        Spacer(Modifier.width(4.dp))
+                                        Badge { Text("$unreadPrivateTotal") }
+                                    }
+                                }
+                            },
+                        )
+                    }
+                    IconButton(onClick = onClose) {
+                        Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close))
                     }
                 }
             }
 
-            // Messages
-            val messages = when (chatTab) {
-                0 -> channelMessages
-                1 -> privateMessages
-                else -> emptyList()
+            if (chatTab == 1 && pmTarget == null) {
+                // Telegram-like conversation list.
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState()),
+                ) {
+                    pmConversationUsers.forEach { (userId, nickname) ->
+                        val lastMessage = privateMessagesByUser[userId]?.lastOrNull()
+                        val userUnread = unreadPrivatePerUser[userId] ?: 0
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onSelectPmUser(userId) }
+                                .padding(horizontal = 8.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Surface(
+                                shape = CircleShape,
+                                color = MaterialTheme.colorScheme.primaryContainer,
+                                modifier = Modifier.size(44.dp),
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Text(
+                                        text = nickname.take(1).uppercase(),
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    )
+                                }
+                            }
+                            Spacer(Modifier.width(12.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(nickname, style = MaterialTheme.typography.titleSmall)
+                                if (lastMessage != null) {
+                                    Text(
+                                        text = lastMessage.text.ifBlank { stringResource(R.string.image) },
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                }
+                            }
+                            if (userUnread > 0) {
+                                Badge { Text("$userUnread") }
+                            }
+                        }
+                    }
+                }
+            } else {
+                val messages = when (chatTab) {
+                    0 -> channelMessages
+                    1 -> privateMessages
+                    else -> emptyList()
+                }
+                ChatView(
+                    messages = messages,
+                    showLinkThumbnails = showLinkThumbnails,
+                    autoLoadImages = autoLoadImages,
+                    onDownload = onDownload,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                )
             }
-            ChatView(
-                messages = messages,
-                showLinkThumbnails = showLinkThumbnails,
-                autoLoadImages = autoLoadImages,
-                onDownload = onDownload,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-            )
 
             // Message input
             Row(
@@ -816,6 +848,7 @@ fun ChatPanel(
                         )
                     },
                     singleLine = true,
+                    shape = RoundedCornerShape(24.dp),
                     enabled = chatTab == 0 || pmTarget != null,
                     colors = OutlinedTextFieldDefaults.colors(
                         unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
