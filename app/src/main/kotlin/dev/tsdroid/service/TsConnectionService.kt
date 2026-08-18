@@ -749,7 +749,7 @@ class TsConnectionService : LifecycleService(), ViewModelStoreOwner, SavedStateR
                     onToggleMic = { audioBridge.toggleMute() },
                     onToggleOutput = { audioBridge.toggleOutputMute() },
                     onChannelClick = { channelId -> tsClient.moveToChannel(channelId) },
-                    onClose = { hideFloatingWindow() }
+                    onClose = { disconnect() }
                 )
             }
         }
