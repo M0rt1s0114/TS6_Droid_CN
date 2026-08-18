@@ -4,8 +4,13 @@ import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.util.Log
+import dev.tsdroid.data.BookmarkStore
 import dev.tsdroid.diag.DiagLog
 import dev.tsdroid.han.R
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -28,10 +33,20 @@ class TsDroidApp : Application() {
         }
     }
 
+    private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
     override fun onCreate() {
         super.onCreate()
         createNotificationChannels()
         initDiagnostics()
+        // Encrypt any bookmark passwords still stored in plaintext by older builds.
+        appScope.launch {
+            try {
+                BookmarkStore(applicationContext).migrateLegacyPasswords()
+            } catch (e: Exception) {
+                Log.e("TsDroidApp", "Bookmark password migration failed", e)
+            }
+        }
     }
 
     private fun createNotificationChannels() {

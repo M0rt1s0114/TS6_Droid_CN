@@ -1,6 +1,7 @@
 package dev.tsdroid.data
 
 import android.content.Context
+import android.util.Log
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
@@ -15,6 +16,7 @@ private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(na
 class BookmarkStore(private val context: Context) {
 
     companion object {
+        private const val TAG = "BookmarkStore"
         private val KEY_BOOKMARKS = stringPreferencesKey("bookmarks_json")
         private val KEY_AUTO_RECONNECT = booleanPreferencesKey("auto_reconnect")
         private val KEY_LAST_BOOKMARK_ADDRESS = stringPreferencesKey("last_bookmark_address")
@@ -27,6 +29,24 @@ class BookmarkStore(private val context: Context) {
 
     val autoReconnect: Flow<Boolean> = context.dataStore.data.map { prefs ->
         prefs[KEY_AUTO_RECONNECT] ?: false
+    }
+
+    /**
+     * One-time upgrade: encrypt bookmark passwords that were written by older
+     * versions in plaintext. Runs at app startup and is safe to call again.
+     */
+    suspend fun migrateLegacyPasswords() {
+        try {
+            context.dataStore.edit { prefs ->
+                val json = prefs[KEY_BOOKMARKS] ?: return@edit
+                if (hasLegacyPassword(json)) {
+                    prefs[KEY_BOOKMARKS] = serializeBookmarks(parseBookmarks(json))
+                    Log.i(TAG, "Migrated bookmark passwords to Keystore encryption")
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to migrate legacy bookmark passwords", e)
+        }
     }
 
     suspend fun setAutoReconnect(enabled: Boolean) {
@@ -120,6 +140,40 @@ class BookmarkStore(private val context: Context) {
         }
     }
 
+    private fun hasLegacyPassword(json: String): Boolean {
+        if (json.isBlank() || json == "[]") return false
+        return try {
+            val array = org.json.JSONArray(json)
+            (0 until array.length()).any { index ->
+                val raw = array.optJSONObject(index)?.optString("password", "").orEmpty()
+                raw.isNotEmpty() && raw != "null" && !SecretCipher.isEncrypted(raw)
+            }
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    private fun decryptPassword(raw: String): String? {
+        val stored = raw.takeIf { it.isNotEmpty() && it != "null" } ?: return null
+        // Encrypted values decrypt to the original password; legacy plaintext
+        // passes through unchanged until the startup migration re-saves it.
+        return SecretCipher.decrypt(stored)
+    }
+
+    /**
+     * Keystore encryption should never crash bookmark saving on exotic devices;
+     * if it is unavailable we keep the legacy plaintext value and retry the
+     * migration on the next app start.
+     */
+    private fun encryptPassword(plain: String): String {
+        return try {
+            SecretCipher.encrypt(plain)
+        } catch (e: Exception) {
+            Log.e(TAG, "Keystore encryption unavailable; password stored unencrypted", e)
+            plain
+        }
+    }
+
     private fun parseBookmarks(json: String): List<ServerBookmark> {
         if (json.isBlank() || json == "[]") return emptyList()
         return try {
@@ -130,7 +184,7 @@ class BookmarkStore(private val context: Context) {
                     name = o.optString("name", ""),
                     address = o.optString("address", ""),
                     nickname = o.optString("nickname", ""),
-                    password = o.optString("password", "").takeIf { it.isNotEmpty() && it != "null" },
+                    password = decryptPassword(o.optString("password", "")),
                     channel = o.optString("channel", "").takeIf { it.isNotEmpty() && it != "null" },
                     serverName = o.optString("serverName", "").takeIf { it.isNotEmpty() && it != "null" },
                     iconId = o.optLong("iconId", 0),
@@ -157,7 +211,7 @@ class BookmarkStore(private val context: Context) {
             o.put("name", b.name)
             o.put("address", b.address)
             o.put("nickname", b.nickname)
-            o.put("password", b.password ?: org.json.JSONObject.NULL)
+            o.put("password", b.password?.let { encryptPassword(it) } ?: org.json.JSONObject.NULL)
             o.put("channel", b.channel ?: org.json.JSONObject.NULL)
             o.put("serverName", b.serverName ?: org.json.JSONObject.NULL)
             o.put("iconId", b.iconId)
