@@ -556,7 +556,11 @@ class TsConnectionService : LifecycleService(), ViewModelStoreOwner, SavedStateR
         isIntentionalDisconnect = true
         serviceScope.launch(Dispatchers.IO) {
             try {
-                recordConnectedSeconds()
+                try {
+                    recordConnectedSeconds()
+                } catch (t: Throwable) {
+                    DiagLog.w(TAG, "Failed to record connected time before disconnect", t)
+                }
                 tsClient.disconnect()
             } finally {
                 withContext(Dispatchers.Main) {
