@@ -144,6 +144,7 @@
     <string name="unknown_sender">未知</string>
     <string name="me_sender">我</string>
     <string name="error_address_nickname_required">地址和昵称为必填项</string>
+    <string name="error_nickname_too_short">昵称至少需要3个字符</string>
     <string name="connection_failed">连接失败</string>
     <string name="browse_failed">浏览频道失败</string>
 

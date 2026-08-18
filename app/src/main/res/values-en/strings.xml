@@ -102,6 +102,7 @@
     <string name="unknown_sender">Unknown</string>
     <string name="me_sender">Me</string>
     <string name="error_address_nickname_required">Address and nickname are required</string>
+    <string name="error_nickname_too_short">Nickname must be at least 3 characters long</string>
     <string name="connection_failed">Connection failed</string>
     <string name="browse_failed">Failed to browse channels</string>
 

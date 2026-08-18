@@ -145,6 +145,7 @@
     <string name="unknown_sender">Inconnu</string>
     <string name="me_sender">Moi</string>
     <string name="error_address_nickname_required">L\'adresse et le pseudo sont requis</string>
+    <string name="error_nickname_too_short">Le pseudo doit contenir au moins 3 caractères</string>
     <string name="connection_failed">Échec de la connexion</string>
     <string name="browse_failed">Échec du parcours des channels</string>
 

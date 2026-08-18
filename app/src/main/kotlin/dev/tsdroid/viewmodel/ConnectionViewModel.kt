@@ -41,6 +41,7 @@ import java.io.File
 class ConnectionViewModel(application: Application) : AndroidViewModel(application) {
     companion object {
         private const val TAG = "ConnectionViewModel"
+        private const val MIN_NICKNAME_LENGTH = 3
         /** Survit aux recréations du ViewModel dans le même processus. */
         private var autoReconnectAttempted = false
     }
@@ -108,13 +109,45 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
     private var connectJob: kotlinx.coroutines.Job? = null
     private var cloneBypassIdentity: Identity? = null
 
-    fun connect(onConnected: () -> Unit) {
+    private data class ConnectionInput(
+        val address: String,
+        val nickname: String
+    )
+
+    /**
+     * Validates and normalizes the server address and nickname before connection.
+     *
+     * @return Validated connection input, or `null` if validation fails.
+     */
+    private fun getValidatedConnectionInput(): ConnectionInput? {
         val addr = address.value.trim()
         val nick = nickname.value.trim()
-        if (addr.isEmpty() || nick.isEmpty()) {
-            _error.value = getApplication<Application>().getString(R.string.error_address_nickname_required)
-            return
+
+        val errorRes = when {
+            addr.isEmpty() || nick.isEmpty() ->
+                R.string.error_address_nickname_required
+
+            nick.length < MIN_NICKNAME_LENGTH ->
+                R.string.error_nickname_too_short
+
+            else -> null
         }
+
+        if (errorRes != null) {
+            _error.value = getApplication<Application>().getString(errorRes)
+            return null
+        }
+
+        return ConnectionInput(
+            address = addr,
+            nickname = nick
+        )
+    }
+
+    fun connect(onConnected: () -> Unit) {
+        val input = getValidatedConnectionInput() ?: return
+        val addr = input.address
+        val nick = input.nickname
 
         val existingService = TsConnectionService.instance
         if (existingService?.hasActiveConnection(addr) == true) {
@@ -282,12 +315,9 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     fun browseChannels() {
-        val addr = address.value.trim()
-        val nick = nickname.value.trim()
-        if (addr.isEmpty() || nick.isEmpty()) {
-            _error.value = getApplication<Application>().getString(R.string.error_address_nickname_required)
-            return
-        }
+        val input = getValidatedConnectionInput() ?: return
+        val addr = input.address
+        val nick = input.nickname
 
         isBrowsing.value = true
         _error.value = null
