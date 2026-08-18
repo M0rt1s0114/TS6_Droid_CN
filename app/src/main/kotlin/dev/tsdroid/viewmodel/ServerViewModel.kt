@@ -270,28 +270,22 @@ class ServerViewModel(application: Application) : AndroidViewModel(application) 
                     Log.d(TAG, "Channels updated: ${channels.size}")
                     _channels.value = channels
                     loadChannelIcons(channels)
+                    persistServerSnapshot(service)
                 }
             }
             viewModelScope.launch {
                 service.tsClient.users.collect {
                     _rawUsers.value = it
                     loadAvatars(it)
+                    persistServerSnapshot(service)
                 }
             }
             viewModelScope.launch {
-                var bookmarkUpdated = false
                 service.tsClient.serverInfo.collect { info ->
                     _serverInfo.value = info
-                    if (info != null && !bookmarkUpdated) {
-                        bookmarkUpdated = true
-                        val addr = serverAddress ?: service.tsClient.serverAddress ?: ""
-                        if (addr.isNotEmpty()) {
-                            bookmarkStore.updateServerInfo(addr, info)
-                            // Download server icon if needed
-                            if (info.iconId != 0L) {
-                                iconCache.loadIcon(info.iconId, service.tsClient)
-                            }
-                        }
+                    persistServerSnapshot(service)
+                    if (info != null && info.iconId != 0L) {
+                        iconCache.loadIcon(info.iconId, service.tsClient)
                     }
                 }
             }
@@ -354,6 +348,33 @@ class ServerViewModel(application: Application) : AndroidViewModel(application) 
             service.tsClient.startEventLoop()
             
             bound = true
+        }
+    }
+
+    private fun persistServerSnapshot(service: TsConnectionService) {
+        val info = _serverInfo.value ?: return
+        val addr = serverAddress ?: service.tsClient.serverAddress ?: return
+        if (addr.isEmpty()) return
+
+        // Rust sync_state does not populate online counts, so derive them
+        // from the live user/channel lists instead.
+        val snapshot = ServerInfo(
+            info.name,
+            info.platform,
+            info.version,
+            info.maxClients,
+            _rawUsers.value.size,
+            _channels.value.size,
+            info.uptime,
+            info.welcomeMessage,
+            info.iconId,
+        )
+        viewModelScope.launch {
+            try {
+                bookmarkStore.updateServerInfo(addr, snapshot)
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to persist server snapshot", e)
+            }
         }
     }
 
