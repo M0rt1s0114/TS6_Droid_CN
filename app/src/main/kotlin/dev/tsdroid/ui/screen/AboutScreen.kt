@@ -16,6 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
@@ -191,7 +192,11 @@ fun AboutScreen(onBack: () -> Unit) {
                                 style = MaterialTheme.typography.bodyLarge,
                             )
                             Text(
-                                text = stringResource(R.string.about_contributions_count, contributor.contributions),
+                                text = pluralStringResource(
+                                    R.plurals.about_contributions_count,
+                                    contributor.contributions,
+                                    contributor.contributions,
+                                ),
                                 style = MaterialTheme.typography.bodySmall,
                             )
                         }

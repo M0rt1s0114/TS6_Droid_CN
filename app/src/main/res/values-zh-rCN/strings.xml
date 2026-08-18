@@ -27,8 +27,6 @@
     <string name="add_bookmark">添加服务器</string>
     <string name="edit_bookmark">编辑服务器</string>
     <string name="save">保存</string>
-    <string name="bookmarks">服务器</string>
-    <string name="no_bookmarks">暂无服务器</string>
     <string name="manual_connection">手动连接</string>
     <string name="auto_reconnect">自动重连</string>
     <string name="remove">移除</string>
@@ -39,7 +37,6 @@
     <!-- ServerScreen -->
     <string name="server">服务器</string>
     <string name="disconnect">断开连接</string>
-    <string name="settings">设置</string>
     <string name="audio_gain">音量增益</string>
     <string name="audio_gain_value">×%1$.1f</string>
     <string name="show_link_thumbnails">显示视频链接缩略图</string>
@@ -58,10 +55,11 @@
     <string name="tab_home">主页</string>
     <string name="tab_settings">设置</string>
     <string name="no_connection">暂无连接</string>
-    <string name="wallpaper_cache_size">壁纸缓存：%1$s MB（%2$d 张）</string>
+    <plurals name="wallpaper_cache_size">
+        <item quantity="other">壁纸缓存：%1$s MB（%2$d 张）</item>
+    </plurals>
     <string name="wallpaper_max_cache">最大缓存：%1$d MB</string>
     <string name="wallpaper_view_cache">查看壁纸缓存</string>
-    <string name="wallpaper_cache_images">张壁纸</string>
     <string name="wallpaper_clear_cache">清空壁纸缓存</string>
     <string name="wallpaper_clear_cache_confirm">确定要清空所有壁纸缓存吗？此操作不可恢复。</string>
     <string name="wallpaper_cache_empty">暂无缓存壁纸</string>
@@ -97,22 +95,16 @@
 
     <!-- UserItem -->
     <string name="status_recording">录音中</string>
-    <string name="status_talking">正在讲话</string>
-    <string name="status_muted">已静音</string>
-    <string name="status_output_muted">输出已静音</string>
     <string name="status_away">离开</string>
 
     <!-- MessageBubble -->
     <string name="image">图片</string>
     <string name="file_attachment_info">%1$s · 已分享文件</string>
     <string name="file_attachment_server">%1$s · 服务器文件</string>
-    <string name="download_not_supported">不支持下载</string>
-    <string name="tap_to_download">点击下载</string>
     <string name="tap_to_view">点击查看</string>
     <string name="tap_to_open">点击打开</string>
     <string name="downloading">下载中…</string>
     <string name="download">下载</string>
-    <string name="file_saved_label">已保存到下载目录</string>
     <string name="file_saved">%1$s 已保存</string>
     <string name="attach_file">附件</string>
     <string name="file_size_bytes">%1$d B</string>
@@ -141,7 +133,6 @@
     <string name="notif_mute">静音</string>
 
     <!-- ViewModel -->
-    <string name="unknown_sender">未知</string>
     <string name="me_sender">我</string>
     <string name="error_address_nickname_required">地址和昵称为必填项</string>
     <string name="error_nickname_too_short">昵称至少需要3个字符</string>
@@ -163,7 +154,9 @@
     <string name="about_warning_title">⚠️ 谨防受骗（郑重免责声明）</string>
     <string name="about_warning_desc">本程序属于纯公益、非盈利性质的开源技术交流产物，完全免费，完全开源！严禁任何形式的商业兜售、打包买断或捆绑卡密收费行为。如果您是通过付费渠道（如二手机器人、各大交易平台、收费代下等）购买获得本软件，说明您已被骗！请立即向平台发起侵权退款维权，并前往官方开源仓库实名举报倒卖黑商！</string>
     <string name="about_contributors_title">贡献者</string>
-    <string name="about_contributions_count">%1$d 次贡献</string>
+    <plurals name="about_contributions_count">
+        <item quantity="other">%1$d 次贡献</item>
+    </plurals>
     <string name="contributors_load_error">加载失败</string>
 
     <!-- Connection errors -->

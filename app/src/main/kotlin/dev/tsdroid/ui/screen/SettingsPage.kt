@@ -30,6 +30,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -503,7 +504,12 @@ private fun WallpaperCacheSection(context: Context) {
     }
 
     Text(
-        text = stringResource(R.string.wallpaper_cache_size, String.format("%.1f", cacheSizeMB.floatValue), cacheCount.intValue),
+        text = pluralStringResource(
+            R.plurals.wallpaper_cache_size,
+            cacheCount.intValue,
+            String.format(java.util.Locale.getDefault(), "%.1f", cacheSizeMB.floatValue),
+            cacheCount.intValue,
+        ),
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.padding(start = 16.dp, top = 8.dp),
