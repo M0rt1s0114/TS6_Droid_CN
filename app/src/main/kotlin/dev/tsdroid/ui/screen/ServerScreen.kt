@@ -2,6 +2,7 @@ package dev.tsdroid.ui.screen
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -30,21 +31,22 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.ChatBubble
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.Headset
 import androidx.compose.material.icons.filled.HeadsetOff
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MicOff
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Forum
+import androidx.compose.material.icons.outlined.Dns
+import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Badge
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -212,17 +214,16 @@ fun ServerScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .statusBarsPadding()
-                    .padding(horizontal = 56.dp, vertical = 6.dp),
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
             ) {
+                // Same width and border language as the channel tile below.
                 FloatingTile(
-                    modifier = Modifier
-                        .align(Alignment.Center)
-                        .fillMaxWidth(),
-                    cornerRadius = 24,
-                    contentPadding = 14,
+                    modifier = Modifier.fillMaxWidth(),
+                    cornerRadius = 20,
+                    contentPadding = 12,
                 ) {
                     Row(
-                        modifier = Modifier.align(Alignment.CenterHorizontally),
+                        modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Surface(
@@ -232,7 +233,7 @@ fun ServerScreen(
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Icon(
-                                    Icons.Default.Dns,
+                                    Icons.Outlined.Dns,
                                     contentDescription = null,
                                     tint = adaptiveTopBarColor,
                                     modifier = Modifier.size(20.dp),
@@ -240,7 +241,7 @@ fun ServerScreen(
                             }
                         }
                         Spacer(Modifier.width(10.dp))
-                        Column {
+                        Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = serverInfo?.name ?: stringResource(R.string.server),
                                 style = MaterialTheme.typography.titleSmall,
@@ -261,24 +262,24 @@ fun ServerScreen(
                                 maxLines = 1,
                             )
                         }
-                        Spacer(Modifier.width(10.dp))
                         Box(
                             modifier = Modifier
                                 .size(8.dp)
                                 .background(Color(0xFF4CAF50), CircleShape),
                         )
+                        Spacer(Modifier.width(6.dp))
+                        IconButton(
+                            onClick = { viewModel.toggleFileManager() },
+                            modifier = Modifier.size(36.dp),
+                        ) {
+                            Icon(
+                                Icons.Outlined.Folder,
+                                contentDescription = stringResource(R.string.file_manager),
+                                tint = adaptiveTopBarColor,
+                                modifier = Modifier.size(20.dp),
+                            )
+                        }
                     }
-                }
-
-                IconButton(
-                    onClick = { viewModel.toggleFileManager() },
-                    modifier = Modifier.align(Alignment.CenterEnd),
-                ) {
-                    Icon(
-                        Icons.Default.Folder,
-                        contentDescription = stringResource(R.string.file_manager),
-                        tint = adaptiveTopBarColor,
-                    )
                 }
             }
         },
@@ -292,8 +293,14 @@ fun ServerScreen(
             ) {
                 Surface(
                     shape = RoundedCornerShape(28.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.92f),
-                    shadowElevation = 8.dp,
+                    color = MaterialTheme.colorScheme.surfaceContainerLow,
+                    border = BorderStroke(
+                        width = 1.dp,
+                        color = Color.White.copy(
+                            alpha = if (MaterialTheme.colorScheme.background.luminance() < 0.05f) 0.14f else 0.10f,
+                        ),
+                    ),
+                    shadowElevation = 0.dp,
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),

@@ -27,14 +27,15 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.outlined.Folder
+import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.outlined.Schedule
+import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -282,7 +283,7 @@ fun ConnectionScreen(
                                                     )
                                                 } else {
                                                     Icon(
-                                                        Icons.Default.Star,
+                                                        Icons.Outlined.Star,
                                                         contentDescription = null,
                                                         tint = MaterialTheme.colorScheme.primary,
                                                         modifier = Modifier.size(28.dp),
@@ -352,7 +353,7 @@ fun ConnectionScreen(
                                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                                         ) {
                                             StatChip(
-                                                icon = Icons.Default.Person,
+                                                icon = Icons.Outlined.Person,
                                                 text = if (bookmark.maxClients > 0) {
                                                     "${bookmark.clientsOnline}/${bookmark.maxClients}"
                                                 } else {
@@ -361,12 +362,12 @@ fun ConnectionScreen(
                                                 modifier = Modifier.weight(1f),
                                             )
                                             StatChip(
-                                                icon = Icons.Default.Folder,
+                                                icon = Icons.Outlined.Folder,
                                                 text = "${bookmark.channelsOnline}",
                                                 modifier = Modifier.weight(1f),
                                             )
                                             StatChip(
-                                                icon = Icons.Default.Schedule,
+                                                icon = Icons.Outlined.Schedule,
                                                 text = formatUptime(bookmark.uptime),
                                                 modifier = Modifier.weight(1f),
                                             )
