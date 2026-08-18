@@ -334,7 +334,7 @@ fun ServerScreen(
                                 }
                             }
 
-                            !isMicMuted -> {
+                            isMicMuted -> {
                                 // Mic muted + speaker on = hold-to-talk.
                                 var isPressed by remember { mutableStateOf(false) }
                                 val pttBackground = if (isPressed) MaterialTheme.colorScheme.primaryContainer
