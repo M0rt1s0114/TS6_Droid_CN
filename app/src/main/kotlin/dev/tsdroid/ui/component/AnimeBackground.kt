@@ -3,6 +3,7 @@ package dev.tsdroid.ui.component
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -19,18 +20,18 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import coil3.BitmapImage
-import coil3.compose.AsyncImage
-import coil3.request.ImageResult
-import coil3.request.SuccessResult
 import dev.tsdroid.background.CustomBackgroundManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.net.HttpURLConnection
-import java.net.URL
 
+/**
+ * Custom user background only.
+ *
+ * The previous online "anime wallpaper" mode (loliapi.com + wallpaper cache)
+ * was removed for size and readability reasons. See README "已移除的二次元
+ * 背景实现" for the exact implementation if it ever needs to be restored.
+ */
 object AnimeWallpaperState {
-    val currentUrl = mutableStateOf<String?>(null)
     val customBitmap = mutableStateOf<androidx.compose.ui.graphics.ImageBitmap?>(null)
     val dominantColor = mutableStateOf<Color?>(null)
 
@@ -40,65 +41,23 @@ object AnimeWallpaperState {
     /** Best readable text color directly on top of the current wallpaper. */
     val recommendedContentColor = mutableStateOf<Color?>(null)
 
-    private var fetched = false
-
-    suspend fun ensureFetched(context: Context) {
-        if (fetched) return
-        fetched = true
-        WallpaperCacheManager.init(context)
-        refreshCustomBackground(context)
-        if (customBitmap.value == null) {
-            fetchOnlineWallpaper(context)
-        }
-    }
-
-    fun refreshCustomBackground(context: Context) {
-        val customFile = CustomBackgroundManager.getActiveBackground(context)
-        if (customFile != null) {
-            val bm = BitmapFactory.decodeFile(customFile.absolutePath)
-            if (bm != null) {
-                customBitmap.value = bm.asImageBitmap()
-                extractColorFromBitmap(bm)
-            }
-        } else {
-            customBitmap.value = null
-        }
-    }
-
-    private suspend fun fetchOnlineWallpaper(context: Context) {
+    /** Loads or clears the custom background. IO-safe. */
+    suspend fun refreshCustomBackground(context: Context) {
         withContext(Dispatchers.IO) {
-            var networkSuccess = false
-            try {
-                val url = URL("https://www.loliapi.com/acg/pe/")
-                val conn = url.openConnection() as HttpURLConnection
-                conn.instanceFollowRedirects = false
-                conn.connectTimeout = 5000
-                conn.readTimeout = 5000
-                val redirect = conn.getHeaderField("Location")
-                val finalUrl = if (!redirect.isNullOrBlank()) redirect else conn.url.toString()
-                conn.disconnect()
-                currentUrl.value = finalUrl
+            val customFile = CustomBackgroundManager.getActiveBackground(context)
+            if (customFile != null) {
+                val bm = BitmapFactory.decodeFile(customFile.absolutePath)
+                if (bm != null) {
+                    customBitmap.value = bm.asImageBitmap()
+                    extractColorFromBitmap(bm)
+                    return@withContext
+                }
+            }
 
-                val imgConn = URL(finalUrl).openConnection() as HttpURLConnection
-                imgConn.connectTimeout = 8000
-                imgConn.readTimeout = 8000
-                val bitmap = BitmapFactory.decodeStream(imgConn.inputStream)
-                imgConn.disconnect()
-                if (bitmap != null) {
-                    extractColorFromBitmap(bitmap)
-                    WallpaperCacheManager.saveToCache(context, finalUrl)
-                    networkSuccess = true
-                }
-            } catch (_: Exception) {
-            }
-            if (!networkSuccess) {
-                WallpaperCacheManager.getRandomCachedFile()?.let { cached ->
-                    BitmapFactory.decodeFile(cached.absolutePath)?.let { bm ->
-                        currentUrl.value = "file://${cached.absolutePath}"
-                        extractColorFromBitmap(bm)
-                    }
-                }
-            }
+            customBitmap.value = null
+            dominantColor.value = null
+            backgroundLuminance.floatValue = 0.5f
+            recommendedContentColor.value = null
         }
     }
 
@@ -130,7 +89,7 @@ object AnimeWallpaperState {
             // Relative luminance (Rec. 709) tells us whether dark or light
             // text wins on this particular wallpaper.
             val luminance = 0.2126f * rn + 0.7152f * gn + 0.0722f * bn
-            backgroundLuminance.value = luminance
+            backgroundLuminance.floatValue = luminance
             recommendedContentColor.value = if (luminance > 0.5f) {
                 Color(0xFF141414) // bright image → dark text
             } else {
@@ -138,35 +97,30 @@ object AnimeWallpaperState {
             }
         }
     }
-
-    fun extractDominantColor(result: ImageResult) {
-        if (result !is SuccessResult) return
-        val bitmap = when (val image = result.image) {
-            is BitmapImage -> image.bitmap
-            else -> return
-        }
-        extractColorFromBitmap(bitmap)
-    }
 }
 
+/**
+ * Renders the user-selected custom background, if any. No online fetch, no
+ * cache: this keeps APK size and startup work down and never fights the UI
+ * for readability.
+ */
 @Composable
-fun AnimeBackground(enabled: Boolean) {
-    if (!enabled) return
-
+fun CustomBackground() {
     val context = LocalContext.current
 
     LaunchedEffect(Unit) {
-        AnimeWallpaperState.ensureFetched(context)
+        AnimeWallpaperState.refreshCustomBackground(context)
     }
 
     val customBmp = AnimeWallpaperState.customBitmap.value
-    val url = AnimeWallpaperState.currentUrl.value
+    if (customBmp == null) return
 
-    var imageLoaded by remember { mutableStateOf(false) }
+    var imageLoaded by remember(customBmp) { mutableStateOf(false) }
+    LaunchedEffect(customBmp) { imageLoaded = true }
     val imageAlpha by animateFloatAsState(
         targetValue = if (imageLoaded) 1f else 0f,
         animationSpec = tween(durationMillis = 600),
-        label = "bgFadeIn",
+        label = "customBgFadeIn",
     )
 
     Box(
@@ -174,36 +128,19 @@ fun AnimeBackground(enabled: Boolean) {
             .fillMaxSize()
             .alpha(0.75f)
     ) {
-        if (customBmp != null) {
-            imageLoaded = true
-            androidx.compose.foundation.Image(
-                bitmap = customBmp,
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize(),
-            )
-        } else if (url != null) {
-            AsyncImage(
-                model = url,
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .graphicsLayer { alpha = imageAlpha },
-                onSuccess = { state ->
-                    imageLoaded = true
-                    AnimeWallpaperState.extractDominantColor(state.result)
-                },
-            )
-        }
+        Image(
+            bitmap = customBmp,
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer { alpha = imageAlpha },
+        )
 
-        // Adaptive readability scrim. If the theme draws light text, bright
-        // wallpapers get a darker scrim; if it draws dark text, dark
-        // wallpapers get a lighter scrim. Dark/light judgment follows the
-        // actual onSurface color, so it works for system, forced and AMOLED
-        // theme modes without extra plumbing.
+        // Adaptive readability scrim: bright wallpapers get a dark scrim for
+        // light text and vice versa, following the active theme.
         val textIsLight = MaterialTheme.colorScheme.onSurface.luminance() > 0.5f
-        val wallpaperLuminance = AnimeWallpaperState.backgroundLuminance.value
+        val wallpaperLuminance = AnimeWallpaperState.backgroundLuminance.floatValue
         val boost = if (textIsLight) {
             ((wallpaperLuminance - 0.35f) / 0.65f).coerceIn(0f, 1f)
         } else {

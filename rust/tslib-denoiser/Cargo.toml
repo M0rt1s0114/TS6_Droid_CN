@@ -1,0 +1,16 @@
+[package]
+name = "tslib-denoiser"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+description = "Standalone JNI denoiser for tslib-based Android clients"
+
+[lib]
+name = "tslib_denoiser"
+crate-type = ["cdylib"]
+
+[dependencies]
+jni = "0.21"
+sherpa-onnx = { version = "1.13.5", default-features = false, features = ["shared"] }
+log = "0.4"
+android_logger = "0.14"

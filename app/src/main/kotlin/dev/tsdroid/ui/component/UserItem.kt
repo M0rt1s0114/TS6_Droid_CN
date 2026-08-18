@@ -47,8 +47,6 @@ import androidx.compose.ui.unit.sp
 import kotlin.math.absoluteValue
 import dev.tsdroid.han.R
 import dev.tslib.User
-
-import dev.tsdroid.service.WhisperManager
 import androidx.compose.foundation.clickable
 import androidx.compose.material3.IconButton
 
@@ -59,7 +57,6 @@ fun UserItem(
     avatar: ImageBitmap? = null,
     onClick: (() -> Unit)? = null,
     onToggleMute: (() -> Unit)? = null,
-    onWhisperClick: ((Int) -> Unit)? = null,
     isLocallyMuted: Boolean = false,
 ) {
     Box(modifier = modifier) {
@@ -133,19 +130,6 @@ fun UserItem(
                     tint = Color(0xFFFF9800),
                 )
                 Spacer(Modifier.width(2.dp))
-            }
-            if (onWhisperClick != null) {
-                IconButton(
-                    onClick = { onWhisperClick(user.id) },
-                    modifier = Modifier.size(24.dp)
-                ) {
-                    Icon(
-                        Icons.Default.Forum,
-                        contentDescription = stringResource(R.string.whisper),
-                        modifier = Modifier.size(16.dp),
-                        tint = if (WhisperManager.isWhisperActive && WhisperManager.whisperTargets.contains(user.id)) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                    )
-                }
             }
         }
     }

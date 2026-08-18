@@ -17,7 +17,6 @@ private val KEY_AUTO_LOAD_IMAGES = booleanPreferencesKey("auto_load_images")
 private val KEY_LANGUAGE = stringPreferencesKey("language")
 private val KEY_THEME_MODE = stringPreferencesKey("theme_mode")
 private val KEY_ENABLE_FLOATING_WINDOW = booleanPreferencesKey("enable_floating_window")
-private val KEY_ANIME_BACKGROUND = booleanPreferencesKey("anime_background")
 private val KEY_NOISE_SUPPRESSION = booleanPreferencesKey("noise_suppression")
 
 class SettingsStore(private val context: Context) {
@@ -39,9 +38,6 @@ class SettingsStore(private val context: Context) {
 
     val enableFloatingWindow: Flow<Boolean> = context.settingsDataStore.data
         .map { it[KEY_ENABLE_FLOATING_WINDOW] ?: true }
-
-    val animeBackground: Flow<Boolean> = context.settingsDataStore.data
-        .map { it[KEY_ANIME_BACKGROUND] ?: true }
 
     suspend fun setAudioGain(gain: Float) {
         context.settingsDataStore.edit { it[KEY_AUDIO_GAIN] = gain }
@@ -65,10 +61,6 @@ class SettingsStore(private val context: Context) {
 
     suspend fun setEnableFloatingWindow(enabled: Boolean) {
         context.settingsDataStore.edit { it[KEY_ENABLE_FLOATING_WINDOW] = enabled }
-    }
-
-    suspend fun setAnimeBackground(enabled: Boolean) {
-        context.settingsDataStore.edit { it[KEY_ANIME_BACKGROUND] = enabled }
     }
 
     val noiseSuppression: Flow<Boolean> = context.settingsDataStore.data

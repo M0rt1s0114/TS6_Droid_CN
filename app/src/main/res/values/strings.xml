@@ -17,6 +17,9 @@
     <!-- ConnectionScreen -->
     <string name="server_address">Adresse du serveur</string>
     <string name="server_address_placeholder">localhost:9987</string>
+    <string name="current_nickname">Pseudo actuel : %1$s</string>
+    <string name="card_icon_label">Icône de secours (facultatif)</string>
+    <string name="clear">Effacer</string>
     <string name="nickname">Pseudo</string>
     <string name="password_optional">Mot de passe (optionnel)</string>
     <string name="channel_optional">Channel (optionnel)</string>
@@ -24,6 +27,7 @@
     <string name="browse_channels">Parcourir les channels</string>
     <string name="connecting">Connexion\u2026</string>
     <string name="connect">Se connecter</string>
+    <string name="reenter">Rejoindre</string>
     <string name="add_bookmark">Ajouter un favori</string>
     <string name="edit_bookmark">Modifier le favori</string>
     <string name="save">Enregistrer</string>
@@ -42,14 +46,15 @@
     <string name="show_link_thumbnails">Miniatures des liens vidéo</string>
     <string name="auto_load_images">Charger les images automatiquement</string>
     <string name="enable_floating_window">Activer la fenêtre flottante</string>
-    <string name="anime_background">Fond animé aléatoire</string>
     <string name="noise_suppression">Réduction de bruit du micro</string>
     <string name="chat">Chat</string>
     <string name="push_to_talk">Appuyer pour parler</string>
     <string name="ptt">PTT</string>
+    <string name="ptt_active">En train de parler</string>
     <string name="mute_mic">Couper le micro</string>
     <string name="mute">Mute</string>
     <string name="input_muted_state">Micro coupé</string>
+    <string name="mic_open">Micro actif</string>
     <string name="unmute_mic">Activer le micro</string>
     <string name="tab_channel">Channel</string>
     <string name="tab_private">MP</string>
@@ -57,15 +62,6 @@
     <string name="tab_settings">Paramètres</string>
     <string name="no_connection">Aucune connexion</string>
     <string name="no_connection_hint">Appuyez sur + pour ajouter votre premier serveur</string>
-    <plurals name="wallpaper_cache_size">
-        <item quantity="one">Cache fond d\'écran : %1$s Mo (%2$d image)</item>
-        <item quantity="other">Cache fond d\'écran : %1$s Mo (%2$d images)</item>
-    </plurals>
-    <string name="wallpaper_max_cache">Cache max : %1$d Mo</string>
-    <string name="wallpaper_view_cache">Voir le cache des fonds d\'écran</string>
-    <string name="wallpaper_clear_cache">Vider le cache des fonds d\'écran</string>
-    <string name="wallpaper_clear_cache_confirm">Êtes-vous sûr de vouloir vider tout le cache des fonds d\'écran ? Cette action est irréversible.</string>
-    <string name="wallpaper_cache_empty">Aucun fond d\'écran en cache</string>
     <string name="confirm">Confirmer</string>
     <string name="custom_bg_title">Fond d\'écran personnalisé</string>
     <string name="custom_bg_upload">Choisir dans la galerie</string>

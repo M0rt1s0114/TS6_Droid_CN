@@ -2,6 +2,7 @@ package dev.tsdroid.ui.screen
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -22,16 +23,21 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.ChatBubble
 import androidx.compose.material.icons.filled.Close
@@ -40,9 +46,10 @@ import androidx.compose.material.icons.filled.HeadsetOff
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MicOff
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Forum
+import androidx.compose.material.icons.outlined.Dns
+import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Badge
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -61,8 +68,6 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -70,6 +75,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -82,14 +88,16 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.tsdroid.han.R
 import dev.tslib.ConnectionState
 import dev.tslib.User
-import dev.tsdroid.ui.component.AnimeBackground
 import dev.tsdroid.ui.component.AnimeWallpaperState
+import dev.tsdroid.ui.component.CustomBackground
+import dev.tsdroid.ui.component.FloatingTile
 import dev.tsdroid.ui.component.ChannelTree
 import dev.tsdroid.ui.component.ChatView
 import dev.tsdroid.ui.component.FileManagerDialog
@@ -99,7 +107,7 @@ import dev.tsdroid.viewmodel.DownloadState
 import dev.tsdroid.viewmodel.FileAttachment
 import dev.tsdroid.viewmodel.ServerViewModel
 import kotlinx.coroutines.flow.StateFlow
-import dev.tsdroid.service.WhisperManager
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -115,16 +123,16 @@ fun ServerScreen(
     val serverInfo by viewModel.serverInfo.collectAsStateWithLifecycle()
     val channelMessages by viewModel.channelMessages.collectAsStateWithLifecycle()
     val privateMessages by viewModel.privateMessages.collectAsStateWithLifecycle()
-    val isPttMode by viewModel.isPttMode.collectAsStateWithLifecycle()
+    val isMicMuted by viewModel.isMicMuted.collectAsStateWithLifecycle()
     val isOutputMuted by viewModel.isOutputMuted.collectAsStateWithLifecycle()
     val connectionState by viewModel.connectionState.collectAsStateWithLifecycle()
+    val connectionStartedAt by viewModel.connectionStartedAtMillis.collectAsStateWithLifecycle()
     val unreadChannel by viewModel.unreadChannel.collectAsStateWithLifecycle()
     val unreadPrivate by viewModel.unreadPrivate.collectAsStateWithLifecycle()
     val audioGain by viewModel.audioGain.collectAsStateWithLifecycle()
     val showLinkThumbnails by viewModel.showLinkThumbnails.collectAsStateWithLifecycle()
     val autoLoadImages by viewModel.autoLoadImages.collectAsStateWithLifecycle()
     val enableFloatingWindow by viewModel.enableFloatingWindow.collectAsStateWithLifecycle()
-    val animeBackground by viewModel.animeBackground.collectAsStateWithLifecycle()
     val noiseSuppression by viewModel.noiseSuppression.collectAsStateWithLifecycle()
     val mutedUserIds by viewModel.mutedUserIds.collectAsStateWithLifecycle()
     val fileManagerOpen by viewModel.fileManagerOpen.collectAsStateWithLifecycle()
@@ -140,10 +148,6 @@ fun ServerScreen(
     var chatTab by remember { mutableIntStateOf(0) }
     var messageText by remember { mutableStateOf("") }
     var pmTargetId by remember { mutableStateOf<Int?>(null) }
-
-    // Whisper (瀵嗚亰) state 鈥?read directly from WhisperManager
-    val whisperTargetNames = WhisperManager.whisperTargetNames
-    val whisperFirstTargetName = whisperTargetNames.firstOrNull()
 
     // Resolve pmTarget User from users list
     val pmTarget = pmTargetId?.let { id -> users.find { it.id == id } }
@@ -192,7 +196,7 @@ fun ServerScreen(
     val totalUnread = unreadChannel + totalUnreadPrivate
 
     Box(modifier = Modifier.fillMaxSize()) {
-        AnimeBackground(enabled = animeBackground)
+        CustomBackground()
 
         Scaffold(
             containerColor = Color.Transparent,
@@ -200,26 +204,100 @@ fun ServerScreen(
             // Only trust wallpaper-derived colors when the wallpaper is
             // actually visible; otherwise fall back to the theme color
             // (fixes black text/icons on the AMOLED black background).
-            val adaptiveTopBarColor = if (animeBackground) {
+            val adaptiveTopBarColor = if (AnimeWallpaperState.customBitmap.value != null) {
                 AnimeWallpaperState.recommendedContentColor.value
                     ?: MaterialTheme.colorScheme.onSurface
             } else {
                 MaterialTheme.colorScheme.onSurface
             }
-            TopAppBar(
-                title = { Text(serverInfo?.name ?: stringResource(R.string.server)) },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Transparent,
-                    scrolledContainerColor = Color.Transparent,
-                    titleContentColor = adaptiveTopBarColor,
-                    actionIconContentColor = adaptiveTopBarColor,
-                ),
-                actions = {
-                    IconButton(onClick = { viewModel.toggleFileManager() }) {
-                        Icon(Icons.Default.Folder, contentDescription = stringResource(R.string.file_manager))
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .statusBarsPadding()
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+            ) {
+                // Same width and border language as the channel tile below.
+                FloatingTile(
+                    modifier = Modifier.fillMaxWidth(),
+                    cornerRadius = 20,
+                    contentPadding = 12,
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            modifier = Modifier.size(34.dp),
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    Icons.Outlined.Dns,
+                                    contentDescription = null,
+                                    tint = adaptiveTopBarColor,
+                                    modifier = Modifier.size(20.dp),
+                                )
+                            }
+                        }
+                        Spacer(Modifier.width(10.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = serverInfo?.name ?: stringResource(R.string.server),
+                                style = MaterialTheme.typography.titleSmall,
+                                color = adaptiveTopBarColor,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            val maxClients = serverInfo?.maxClients ?: 0
+                            val onlineText = if (maxClients > 0) {
+                                "${users.size}/$maxClients"
+                            } else {
+                                "${users.size}"
+                            }
+                            var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
+                            LaunchedEffect(connectionStartedAt) {
+                                while (true) {
+                                    now = System.currentTimeMillis()
+                                    delay(1_000)
+                                }
+                            }
+                            val elapsed = ((now - connectionStartedAt) / 1_000).coerceAtLeast(0)
+                            val sessionText = String.format(
+                                java.util.Locale.US,
+                                "%02d:%02d:%02d",
+                                elapsed / 3_600,
+                                (elapsed % 3_600) / 60,
+                                elapsed % 60,
+                            )
+                            Text(
+                                text = "$onlineText · $sessionText",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = adaptiveTopBarColor.copy(alpha = 0.7f),
+                                maxLines = 1,
+                            )
+                        }
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .background(Color(0xFF4CAF50), CircleShape),
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        IconButton(
+                            onClick = { viewModel.toggleFileManager() },
+                            modifier = Modifier.size(36.dp),
+                        ) {
+                            Icon(
+                                Icons.Outlined.Folder,
+                                contentDescription = stringResource(R.string.file_manager),
+                                tint = adaptiveTopBarColor,
+                                modifier = Modifier.size(20.dp),
+                            )
+                        }
                     }
-                },
-            )
+                }
+            }
         },
         bottomBar = {
             Box(
@@ -231,18 +309,27 @@ fun ServerScreen(
             ) {
                 Surface(
                     shape = RoundedCornerShape(28.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.92f),
-                    shadowElevation = 8.dp,
+                    color = MaterialTheme.colorScheme.surfaceContainerLow,
+                    border = BorderStroke(
+                        width = 1.dp,
+                        color = Color.White.copy(
+                            alpha = if (MaterialTheme.colorScheme.background.luminance() < 0.05f) 0.14f else 0.10f,
+                        ),
+                    ),
+                    shadowElevation = 0.dp,
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        // 1. Push to talk / muted state
-                        if (isPttMode) {
-                            if (isOutputMuted) {
-                                // Deafen implies mic mute: PTT becomes inert and shows the muted label.
+                        // 1. Talk button: status display or hold-to-talk
+                        // Track press independently so recomposition (mic state
+                        // flips while held) cannot destroy the active gesture.
+                        var pttPressed by remember { mutableStateOf(false) }
+                        when {
+                            isOutputMuted -> {
+                                // Cannot listen => cannot talk.
                                 Box(
                                     modifier = Modifier
                                         .size(72.dp)
@@ -264,12 +351,13 @@ fun ServerScreen(
                                         )
                                     }
                                 }
-                            } else {
-                                // PTT mode: hold to talk
-                                var isPressed by remember { mutableStateOf(false) }
-                                val pttBackground = if (isPressed) MaterialTheme.colorScheme.primaryContainer
+                            }
+
+                            isMicMuted || pttPressed -> {
+                                // Mic muted + speaker on = hold-to-talk.
+                                val pttBackground = if (pttPressed) MaterialTheme.colorScheme.primaryContainer
                                     else MaterialTheme.colorScheme.surfaceVariant
-                                val pttTint = if (isPressed) MaterialTheme.colorScheme.onPrimaryContainer
+                                val pttTint = if (pttPressed) MaterialTheme.colorScheme.onPrimaryContainer
                                     else MaterialTheme.colorScheme.onSurfaceVariant
                                 Box(
                                     modifier = Modifier
@@ -279,11 +367,14 @@ fun ServerScreen(
                                         .pointerInput(Unit) {
                                             detectTapGestures(
                                                 onPress = {
-                                                    isPressed = true
+                                                    pttPressed = true
                                                     viewModel.setPushToTalk(true)
-                                                    tryAwaitRelease()
-                                                    viewModel.setPushToTalk(false)
-                                                    isPressed = false
+                                                    try {
+                                                        tryAwaitRelease()
+                                                    } finally {
+                                                        viewModel.setPushToTalk(false)
+                                                        pttPressed = false
+                                                    }
                                                 },
                                             )
                                         },
@@ -297,46 +388,53 @@ fun ServerScreen(
                                             tint = pttTint,
                                         )
                                         Text(
-                                            stringResource(R.string.ptt),
+                                            text = if (pttPressed) stringResource(R.string.ptt_active) else stringResource(R.string.ptt),
                                             style = MaterialTheme.typography.labelSmall,
                                             color = pttTint,
                                         )
                                     }
                                 }
                             }
-                        } else {
-                            // Voice activity mode: click to go back to PTT
-                            Box(
-                                modifier = Modifier
-                                    .size(72.dp)
-                                    .clip(CircleShape)
-                                    .background(MaterialTheme.colorScheme.errorContainer)
-                                    .clickable { viewModel.toggleVoiceMode() },
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Icon(
-                                        Icons.Default.MicOff,
-                                        contentDescription = stringResource(R.string.mute_mic),
-                                        modifier = Modifier.size(28.dp),
-                                        tint = MaterialTheme.colorScheme.onErrorContainer,
-                                    )
-                                    Text(
-                                        stringResource(R.string.mute),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onErrorContainer,
-                                    )
+
+                            else -> {
+                                // Mic open status indicator, intentionally not clickable.
+                                Box(
+                                    modifier = Modifier
+                                        .size(72.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(0xFF4CAF50)),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Icon(
+                                            Icons.Default.Mic,
+                                            contentDescription = stringResource(R.string.mic_open),
+                                            modifier = Modifier.size(28.dp),
+                                            tint = Color.White,
+                                        )
+                                        Text(
+                                            stringResource(R.string.mic_open),
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = Color.White,
+                                        )
+                                    }
                                 }
                             }
                         }
 
-                        // 2. Mic control (talk mode toggle)
-                        IconButton(onClick = { viewModel.toggleVoiceMode() }) {
+                        // 2. Mic control (disabled while the speaker is muted)
+                        IconButton(
+                            onClick = { viewModel.toggleMicMute() },
+                            enabled = !isOutputMuted,
+                        ) {
                             Icon(
-                                if (isPttMode) Icons.Default.MicOff else Icons.Default.Mic,
-                                contentDescription = stringResource(if (isPttMode) R.string.unmute_mic else R.string.mute_mic),
-                                tint = if (isPttMode) MaterialTheme.colorScheme.error
-                                else MaterialTheme.colorScheme.primary,
+                                if (isMicMuted) Icons.Default.MicOff else Icons.Default.Mic,
+                                contentDescription = stringResource(if (isMicMuted) R.string.unmute_mic else R.string.mute_mic),
+                                tint = when {
+                                    isOutputMuted -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
+                                    isMicMuted -> MaterialTheme.colorScheme.error
+                                    else -> MaterialTheme.colorScheme.primary
+                                },
                             )
                         }
 
@@ -370,17 +468,6 @@ fun ServerScreen(
                             }
                         }
 
-                        // Whisper indicator, shown only while a whisper is active
-                        if (WhisperManager.isWhisperActive && whisperFirstTargetName != null) {
-                            IconButton(onClick = { viewModel.toggleWhisper(WhisperManager.whisperTargets.first()) }) {
-                                Icon(
-                                    Icons.Default.Forum,
-                                    contentDescription = stringResource(R.string.whisper_stop),
-                                    tint = MaterialTheme.colorScheme.tertiary,
-                                )
-                            }
-                        }
-
                         // 5. Exit server
                         IconButton(onClick = { viewModel.disconnect() }) {
                             Icon(
@@ -399,25 +486,32 @@ fun ServerScreen(
                 .fillMaxSize()
                 .padding(padding),
         ) {
-            // Channel tree 鈥?full screen
-            ChannelTree(
-                channels = channels,
-                users = users,
-                onChannelClick = { channelId -> viewModel.moveToChannel(channelId) },
-                onUserClick = { user ->
-                    pmTargetId = user.id
-                    chatTab = 1
-                    chatOpen = true
-                },
-                onUserLongClick = { user -> viewModel.toggleMuteUser(user.id) },
-                onWhisperClick = { userId -> viewModel.toggleWhisper(userId) },
-                mutedUserIds = mutedUserIds,
-                channelIcons = channelIcons,
-                userAvatars = userAvatars,
+            // Channel tree inside one large floating tile
+            FloatingTile(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 8.dp),
-            )
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                cornerRadius = 20,
+                contentPadding = 8,
+            ) {
+                ChannelTree(
+                    channels = channels,
+                    users = users,
+                    onChannelClick = { channelId -> viewModel.moveToChannel(channelId) },
+                    onUserClick = { user ->
+                        pmTargetId = user.id
+                        chatTab = 1
+                        chatOpen = true
+                    },
+                    onUserLongClick = { user -> viewModel.toggleMuteUser(user.id) },
+                    mutedUserIds = mutedUserIds,
+                    channelIcons = channelIcons,
+                    userAvatars = userAvatars,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                )
+            }
 
             // File manager 鈥?slides up from bottom, fills content area
             val fileManagerProgress by animateFloatAsState(
@@ -481,6 +575,8 @@ fun ServerScreen(
                         privateMessages = pmTargetId?.let { id ->
                             privateMessages[id] ?: emptyList()
                         } ?: privateMessages.values.flatten().sortedBy { it.timestamp },
+                        privateMessagesByUser = privateMessages,
+                        userAvatars = userAvatars,
                         messageText = messageText,
                         onMessageChange = { messageText = it },
                         pmTarget = pmTarget,
@@ -488,13 +584,9 @@ fun ServerScreen(
                         onSelectPmUser = { userId -> pmTargetId = userId },
                         onClearPmTarget = { pmTargetId = null },
                         onSend = {
-                            if (WhisperManager.isWhisperActive && whisperFirstTargetName != null) {
-                                viewModel.sendWhisperMessage(messageText)
-                            } else {
-                                when (chatTab) {
-                                    0 -> viewModel.sendChannelMessage(messageText)
-                                    1 -> pmTargetId?.let { viewModel.sendPrivateMessage(it, messageText) }
-                                }
+                            when (chatTab) {
+                                0 -> viewModel.sendChannelMessage(messageText)
+                                1 -> pmTargetId?.let { viewModel.sendPrivateMessage(it, messageText) }
                             }
                             messageText = ""
                         },
@@ -509,8 +601,6 @@ fun ServerScreen(
                             viewModel.uploadAndSendFile(fileName, data, chatTab == 1, pmTargetId)
                         },
                         onDownload = { attachment -> viewModel.downloadAttachment(attachment) },
-                        isWhisperActive = WhisperManager.isWhisperActive,
-                        whisperTargetName = whisperFirstTargetName,
                     )
                 }
             }
@@ -554,6 +644,8 @@ fun ChatPanel(
     onTabChange: (Int) -> Unit,
     channelMessages: List<ChatMessage>,
     privateMessages: List<ChatMessage>,
+    privateMessagesByUser: Map<Int, List<ChatMessage>> = emptyMap(),
+    userAvatars: Map<String, ImageBitmap> = emptyMap(),
     messageText: String,
     onMessageChange: (String) -> Unit,
     pmTarget: User?,
@@ -570,8 +662,6 @@ fun ChatPanel(
     canUploadFiles: Boolean = true,
     onUploadFile: (String, ByteArray) -> Unit = { _, _ -> },
     onDownload: ((FileAttachment) -> StateFlow<DownloadState>)? = null,
-    isWhisperActive: Boolean = false,
-    whisperTargetName: String? = null,
 ) {
     val context = LocalContext.current
     val filePickerLauncher = rememberLauncherForActivityResult(
@@ -598,139 +688,137 @@ fun ChatPanel(
                 .fillMaxSize()
                 .navigationBarsPadding()
                 .padding(8.dp),
-        ) {
-            // Header: tabs + close
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
             ) {
-                PrimaryTabRow(
-                    selectedTabIndex = chatTab,
-                    modifier = Modifier.weight(1f),
-                    containerColor = Color.Transparent,
-                ) {
-                    Tab(
-                        selected = chatTab == 0,
-                        onClick = { onTabChange(0) },
-                        text = {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(stringResource(R.string.tab_channel))
-                                if (unreadChannel > 0) {
-                                    Spacer(Modifier.width(4.dp))
-                                    Badge { Text("$unreadChannel") }
-                                }
-                            }
-                        },
-                    )
-                    Tab(
-                        selected = chatTab == 1,
-                        onClick = { onTabChange(1) },
-                        text = {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(stringResource(R.string.tab_private))
-                                if (unreadPrivateTotal > 0) {
-                                    Spacer(Modifier.width(4.dp))
-                                    Badge { Text("$unreadPrivateTotal") }
-                                }
-                            }
-                        },
-                    )
-                }
-                IconButton(onClick = onClose) {
-                    Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close))
-                }
-            }
-
-            // PM conversation selector
-            if (chatTab == 1 && pmConversationUsers.isNotEmpty()) {
+            // Header: conversation view or tabs
+            if (chatTab == 1 && pmTarget != null) {
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState())
-                        .padding(vertical = 4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    // "All" chip
-                    FilterChip(
-                        selected = pmTarget == null,
-                        onClick = { onClearPmTarget() },
-                        label = { Text(stringResource(R.string.filter_all)) },
-                        leadingIcon = if (pmTarget == null) {
-                            { Icon(Icons.Default.ChatBubble, null, Modifier.size(16.dp)) }
-                        } else null,
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                        ),
+                    IconButton(onClick = onClearPmTarget) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.about_back),
+                        )
+                    }
+                    Text(
+                        text = pmTarget.nickname,
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.weight(1f),
                     )
-                    // One chip per conversation user
-                    pmConversationUsers.forEach { (userId, nickname) ->
-                        val isSelected = pmTarget?.id == userId
-                        val userUnread = unreadPrivatePerUser[userId] ?: 0
-                        FilterChip(
-                            selected = isSelected,
-                            onClick = { onSelectPmUser(userId) },
-                            label = {
+                    IconButton(onClick = onClose) {
+                        Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close))
+                    }
+                }
+            } else {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    PrimaryTabRow(
+                        selectedTabIndex = chatTab,
+                        modifier = Modifier.weight(1f),
+                        containerColor = Color.Transparent,
+                    ) {
+                        Tab(
+                            selected = chatTab == 0,
+                            onClick = { onTabChange(0) },
+                            text = {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(nickname)
-                                    if (userUnread > 0) {
+                                    Text(stringResource(R.string.tab_channel))
+                                    if (unreadChannel > 0) {
                                         Spacer(Modifier.width(4.dp))
-                                        Badge { Text("$userUnread") }
+                                        Badge { Text("$unreadChannel") }
                                     }
                                 }
                             },
-                            leadingIcon = if (isSelected) {
-                                { Icon(Icons.Default.Person, null, Modifier.size(16.dp)) }
-                            } else null,
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
-                            ),
                         )
+                        Tab(
+                            selected = chatTab == 1,
+                            onClick = { onTabChange(1) },
+                            text = {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(stringResource(R.string.tab_private))
+                                    if (unreadPrivateTotal > 0) {
+                                        Spacer(Modifier.width(4.dp))
+                                        Badge { Text("$unreadPrivateTotal") }
+                                    }
+                                }
+                            },
+                        )
+                    }
+                    IconButton(onClick = onClose) {
+                        Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close))
                     }
                 }
             }
 
-            // Whisper mode indicator
-            if (isWhisperActive && whisperTargetName != null) {
-                Surface(
-                    color = MaterialTheme.colorScheme.tertiaryContainer,
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp),
+            if (chatTab == 1 && pmTarget == null) {
+                // Telegram-like conversation list.
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState()),
                 ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Icon(
-                            Icons.Default.Forum,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp),
-                            tint = MaterialTheme.colorScheme.onTertiaryContainer,
-                        )
-                        Spacer(Modifier.width(6.dp))
-                        Text(
-                            text = stringResource(R.string.whisper) + " " + whisperTargetName,
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onTertiaryContainer,
-                        )
+                    pmConversationUsers.forEach { (userId, nickname) ->
+                        val lastMessage = privateMessagesByUser[userId]?.lastOrNull()
+                        val userUnread = unreadPrivatePerUser[userId] ?: 0
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onSelectPmUser(userId) }
+                                .padding(horizontal = 8.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Surface(
+                                shape = CircleShape,
+                                color = MaterialTheme.colorScheme.primaryContainer,
+                                modifier = Modifier.size(44.dp),
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Text(
+                                        text = nickname.take(1).uppercase(),
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    )
+                                }
+                            }
+                            Spacer(Modifier.width(12.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(nickname, style = MaterialTheme.typography.titleSmall)
+                                if (lastMessage != null) {
+                                    Text(
+                                        text = lastMessage.text.ifBlank { stringResource(R.string.image) },
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                }
+                            }
+                            if (userUnread > 0) {
+                                Badge { Text("$userUnread") }
+                            }
+                        }
                     }
                 }
+            } else {
+                val messages = when (chatTab) {
+                    0 -> channelMessages
+                    1 -> privateMessages
+                    else -> emptyList()
+                }
+                ChatView(
+                    messages = messages,
+                    showLinkThumbnails = showLinkThumbnails,
+                    autoLoadImages = autoLoadImages,
+                    onDownload = onDownload,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                )
             }
-
-            // Messages
-            val messages = when (chatTab) {
-                0 -> channelMessages
-                1 -> privateMessages
-                else -> emptyList()
-            }
-            ChatView(
-                messages = messages,
-                showLinkThumbnails = showLinkThumbnails,
-                autoLoadImages = autoLoadImages,
-                onDownload = onDownload,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-            )
 
             // Message input
             Row(
@@ -741,7 +829,7 @@ fun ChatPanel(
                 if (canUploadFiles) {
                     IconButton(
                         onClick = { filePickerLauncher.launch("*/*") },
-                        enabled = (chatTab == 0 || pmTarget != null) && !isWhisperActive,
+                        enabled = chatTab == 0 || pmTarget != null,
                     ) {
                         Icon(Icons.Default.AttachFile, contentDescription = stringResource(R.string.attach_file))
                     }
@@ -752,16 +840,16 @@ fun ChatPanel(
                     modifier = Modifier.weight(1f),
                     placeholder = {
                         Text(
-                            when {
-                                isWhisperActive && whisperTargetName != null ->
-                                    stringResource(R.string.whisper) + " ${whisperTargetName}..."
-                                chatTab == 0 -> stringResource(R.string.message_channel_placeholder)
-                                else -> stringResource(R.string.message_private_placeholder, pmTarget?.nickname ?: "?")
+                            text = if (chatTab == 0) {
+                                stringResource(R.string.message_channel_placeholder)
+                            } else {
+                                stringResource(R.string.message_private_placeholder, pmTarget?.nickname ?: "?")
                             }
                         )
                     },
                     singleLine = true,
-                    enabled = chatTab == 0 || pmTarget != null || (isWhisperActive && whisperTargetName != null),
+                    shape = RoundedCornerShape(24.dp),
+                    enabled = chatTab == 0 || pmTarget != null,
                     colors = OutlinedTextFieldDefaults.colors(
                         unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
                         focusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
@@ -771,7 +859,7 @@ fun ChatPanel(
                 )
                 IconButton(
                     onClick = onSend,
-                    enabled = messageText.isNotBlank() && (chatTab == 0 || pmTarget != null || (isWhisperActive && whisperTargetName != null)),
+                    enabled = messageText.isNotBlank() && (chatTab == 0 || pmTarget != null),
                 ) {
                     Icon(Icons.AutoMirrored.Filled.Send, contentDescription = stringResource(R.string.send))
                 }

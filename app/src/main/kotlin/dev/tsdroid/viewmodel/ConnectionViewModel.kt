@@ -57,6 +57,7 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
     val nickname = MutableStateFlow("")
     val password = MutableStateFlow("")
     val channel = MutableStateFlow("")
+    val iconEmoji = MutableStateFlow<String?>(null)
 
     /** Index du favori en cours d'édition, ou -1 si ajout. */
     private val _editingIndex = MutableStateFlow(-1)
@@ -100,6 +101,11 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
 
     private val _connectionState = MutableStateFlow(ConnectionState.DISCONNECTED)
     val connectionState: StateFlow<Int> = _connectionState.asStateFlow()
+
+    private val _activeAddress = MutableStateFlow<String?>(null)
+    val activeAddress: StateFlow<String?> = _activeAddress.asStateFlow()
+
+    private var resumeAttempted = false
 
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
@@ -150,6 +156,7 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
         val existingService = TsConnectionService.instance
         if (existingService?.hasActiveConnection(addr) == true) {
             _connectionState.value = ConnectionState.CONNECTED
+            _activeAddress.value = addr
             _error.value = null
             onConnected()
             return
@@ -222,9 +229,11 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
 
                 if (connectionFailure == null) {
                     _connectionState.value = ConnectionState.CONNECTED
+                    _activeAddress.value = addr
                     onConnected()
                 } else {
                     _connectionState.value = ConnectionState.DISCONNECTED
+                    _activeAddress.value = null
                     _error.value = connectionFailure.message
                         ?: context.getString(R.string.connection_failed)
                 }
@@ -238,13 +247,32 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     fun resumeExistingConnection(onConnected: () -> Unit): Boolean {
+        if (resumeAttempted) {
+            // Returning from the server screen: keep the connection visible
+            // on the home cards, but do not auto-navigate again.
+            val service = TsConnectionService.instance
+            if (service?.hasActiveConnection() == true) {
+                _connectionState.value = ConnectionState.CONNECTED
+                _activeAddress.value = service.tsClient.serverAddress
+            }
+            return false
+        }
+
+        resumeAttempted = true
         val service = TsConnectionService.instance ?: return false
         if (!service.hasActiveConnection()) return false
 
         _connectionState.value = ConnectionState.CONNECTED
+        _activeAddress.value = service.tsClient.serverAddress
         _error.value = null
         onConnected()
         return true
+    }
+
+    fun disconnectActive() {
+        TsConnectionService.instance?.disconnect()
+        _connectionState.value = ConnectionState.DISCONNECTED
+        _activeAddress.value = null
     }
 
     fun connectBookmark(bookmark: ServerBookmark, onConnected: () -> Unit) {
@@ -289,6 +317,7 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
             nickname = nick,
             password = password.value.trim().takeIf { it.isNotEmpty() },
             channel = channel.value.trim().takeIf { it.isNotEmpty() },
+            iconEmoji = iconEmoji.value,
         )
         viewModelScope.launch {
             val idx = _editingIndex.value
@@ -310,6 +339,7 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
         nickname.value = bookmark.nickname
         password.value = bookmark.password ?: ""
         channel.value = bookmark.channel ?: ""
+        iconEmoji.value = bookmark.iconEmoji
         _editingIndex.value = index
     }
 
@@ -324,6 +354,7 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
         nickname.value = ""
         password.value = ""
         channel.value = ""
+        iconEmoji.value = null
     }
 
     fun browseChannels() {

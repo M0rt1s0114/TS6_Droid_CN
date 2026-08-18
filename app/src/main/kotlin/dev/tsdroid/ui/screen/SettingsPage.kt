@@ -11,14 +11,16 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.NavigateNext
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Forum
+import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.MoreHoriz
+import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.window.Dialog
@@ -35,11 +37,9 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import coil3.compose.AsyncImage
 import dev.tsdroid.data.SettingsStore
 import dev.tsdroid.han.R
-import dev.tsdroid.ui.component.SettingsCacheSizeHelper
-import dev.tsdroid.ui.component.WallpaperCacheManager
+import dev.tsdroid.ui.component.FloatingTile
 import kotlinx.coroutines.launch
 
 @Composable
@@ -54,7 +54,6 @@ fun SettingsPage(
     val showLinkThumbnails by settingsStore.showLinkThumbnails.collectAsStateWithLifecycle(initialValue = false)
     val autoLoadImages by settingsStore.autoLoadImages.collectAsStateWithLifecycle(initialValue = true)
     val enableFloatingWindow by settingsStore.enableFloatingWindow.collectAsStateWithLifecycle(initialValue = false)
-    val animeBackground by settingsStore.animeBackground.collectAsStateWithLifecycle(initialValue = true)
     val noiseSuppression by settingsStore.noiseSuppression.collectAsStateWithLifecycle(initialValue = true)
     val audioGain by settingsStore.audioGain.collectAsStateWithLifecycle(initialValue = 1.0f)
 
@@ -114,13 +113,13 @@ fun SettingsPage(
             .padding(horizontal = 16.dp, vertical = 8.dp),
     ) {
         // ── 外观 ──
-        Card(
+        SettingsSectionTitle(stringResource(R.string.section_appearance), Icons.Default.Palette)
+        FloatingTile(
             modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.92f)),
-            shape = MaterialTheme.shapes.large,
+            cornerRadius = 20,
+            contentPadding = 4,
         ) {
-            Column(modifier = Modifier.padding(vertical = 4.dp)) {
-                SettingsSectionTitle(stringResource(R.string.section_appearance))
+            Column(modifier = Modifier.padding(vertical = 2.dp)) {
 
                 // 主题模式
                 SettingsClickableRow(
@@ -165,36 +164,24 @@ fun SettingsPage(
                     onCheckedChange = { scope.launch { settingsStore.setEnableFloatingWindow(it) } },
                 )
 
-                // 动漫背景
-                SettingsSwitchRow(
-                    label = stringResource(R.string.anime_background),
-                    checked = animeBackground,
-                    onCheckedChange = { scope.launch { settingsStore.setAnimeBackground(it) } },
-                )
-
-                if (animeBackground) {
-                    // 自定义背景
-                    CustomBackgroundSection(context)
-
-                    // 壁纸缓存
-                    WallpaperCacheSection(context)
-                }
+                // 自定义背景
+                CustomBackgroundSection(context)
             }
         }
 
         Spacer(Modifier.height(12.dp))
 
         // ── 音频 ──
-        Card(
+        SettingsSectionTitle(stringResource(R.string.section_audio), Icons.Default.Mic)
+        FloatingTile(
             modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.92f)),
-            shape = MaterialTheme.shapes.large,
+            cornerRadius = 20,
+            contentPadding = 4,
         ) {
-            Column(modifier = Modifier.padding(vertical = 4.dp)) {
-                SettingsSectionTitle(stringResource(R.string.section_audio))
+            Column(modifier = Modifier.padding(vertical = 2.dp)) {
 
                 // 音量增益
-                Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
+                Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
                     Text(
                         text = "${stringResource(R.string.audio_gain)} : ${stringResource(R.string.audio_gain_value, audioGain)}",
                         style = MaterialTheme.typography.bodyLarge,
@@ -220,13 +207,13 @@ fun SettingsPage(
         Spacer(Modifier.height(12.dp))
 
         // ── 聊天 ──
-        Card(
+        SettingsSectionTitle(stringResource(R.string.section_chat), Icons.Default.Forum)
+        FloatingTile(
             modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.92f)),
-            shape = MaterialTheme.shapes.large,
+            cornerRadius = 20,
+            contentPadding = 4,
         ) {
-            Column(modifier = Modifier.padding(vertical = 4.dp)) {
-                SettingsSectionTitle(stringResource(R.string.section_chat))
+            Column(modifier = Modifier.padding(vertical = 2.dp)) {
 
                 SettingsSwitchRow(
                     label = stringResource(R.string.auto_reconnect),
@@ -249,13 +236,13 @@ fun SettingsPage(
         Spacer(Modifier.height(12.dp))
 
         // ── 更多 ──
-        Card(
+        SettingsSectionTitle(stringResource(R.string.section_more), Icons.Default.MoreHoriz)
+        FloatingTile(
             modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.92f)),
-            shape = MaterialTheme.shapes.large,
+            cornerRadius = 20,
+            contentPadding = 4,
         ) {
-            Column(modifier = Modifier.padding(vertical = 4.dp)) {
-                SettingsSectionTitle(stringResource(R.string.section_more))
+            Column(modifier = Modifier.padding(vertical = 2.dp)) {
 
                 // 语言切换
                 SettingsClickableRow(
@@ -321,13 +308,24 @@ fun SettingsPage(
 // ── 可复用组件 ──
 
 @Composable
-private fun SettingsSectionTitle(text: String) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.labelLarge,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-    )
+private fun SettingsSectionTitle(text: String, icon: androidx.compose.ui.graphics.vector.ImageVector) {
+    Row(
+        modifier = Modifier.padding(horizontal = 6.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            modifier = Modifier.size(16.dp),
+            tint = MaterialTheme.colorScheme.primary,
+        )
+        Spacer(Modifier.width(6.dp))
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
 }
 
 @Composable
@@ -339,7 +337,7 @@ private fun SettingsSwitchRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 10.dp),
+            .padding(horizontal = 16.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
@@ -363,7 +361,7 @@ private fun SettingsClickableRow(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() }
-            .padding(horizontal = 16.dp, vertical = 14.dp),
+            .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(text = label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
@@ -375,6 +373,7 @@ private fun SettingsClickableRow(
 
 @Composable
 private fun CustomBackgroundSection(context: Context) {
+    val scope = rememberCoroutineScope()
     var showCropScreen by remember { mutableStateOf(false) }
     var cropBitmap by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
     var hasCustom by remember { mutableStateOf(dev.tsdroid.background.CustomBackgroundManager.hasCustomBackground(context)) }
@@ -413,7 +412,9 @@ private fun CustomBackgroundSection(context: Context) {
                     val success = dev.tsdroid.background.CustomBackgroundManager.cropAndSave(context, cropBitmap!!, left, top, right, bottom)
                     if (success) {
                         hasCustom = true
-                        dev.tsdroid.ui.component.AnimeWallpaperState.refreshCustomBackground(context)
+                        scope.launch {
+                            dev.tsdroid.ui.component.AnimeWallpaperState.refreshCustomBackground(context)
+                        }
                         Toast.makeText(context, context.getString(R.string.custom_bg_saved), Toast.LENGTH_SHORT).show()
                     }
                     cropBitmap?.recycle()
@@ -439,6 +440,9 @@ private fun CustomBackgroundSection(context: Context) {
                 TextButton(onClick = {
                     dev.tsdroid.background.CustomBackgroundManager.deleteBackground(context)
                     hasCustom = false
+                    scope.launch {
+                        dev.tsdroid.ui.component.AnimeWallpaperState.refreshCustomBackground(context)
+                    }
                     showDeleteConfirm = false
                 }) {
                     Text(stringResource(R.string.confirm), color = MaterialTheme.colorScheme.error)
@@ -476,121 +480,6 @@ private fun CustomBackgroundSection(context: Context) {
             OutlinedButton(onClick = { showDeleteConfirm = true }, modifier = Modifier.weight(1f)) {
                 Text(stringResource(R.string.custom_bg_delete), color = MaterialTheme.colorScheme.error)
             }
-        }
-    }
-}
-
-// ── 壁纸缓存区 ──
-
-@Composable
-private fun WallpaperCacheSection(context: Context) {
-    val cacheSizeMB = remember { mutableFloatStateOf(WallpaperCacheManager.getCacheSizeMB()) }
-    val cacheCount = remember { mutableIntStateOf(WallpaperCacheManager.getCachedFilesCount()) }
-    val maxSize = remember { mutableLongStateOf(SettingsCacheSizeHelper.getMaxCacheSize(context)) }
-    var showCacheViewer by remember { mutableStateOf(false) }
-    var showClearConfirm by remember { mutableStateOf(false) }
-
-    if (showClearConfirm) {
-        AlertDialog(
-            onDismissRequest = { showClearConfirm = false },
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-            title = { Text(stringResource(R.string.wallpaper_clear_cache)) },
-            text = { Text(stringResource(R.string.wallpaper_clear_cache_confirm)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    WallpaperCacheManager.clearCache()
-                    cacheSizeMB.floatValue = 0f
-                    cacheCount.intValue = 0
-                    showClearConfirm = false
-                }) {
-                    Text(stringResource(R.string.confirm), color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showClearConfirm = false }) {
-                    Text(stringResource(R.string.cancel))
-                }
-            },
-        )
-    }
-
-    if (showCacheViewer) {
-        val cachedFiles = remember { mutableStateListOf(*WallpaperCacheManager.getCachedFiles().toTypedArray()) }
-        AlertDialog(
-            onDismissRequest = { showCacheViewer = false },
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-            title = { Text("${stringResource(R.string.wallpaper_view_cache)} (${cachedFiles.size})") },
-            text = {
-                if (cachedFiles.isEmpty()) {
-                    Text(stringResource(R.string.wallpaper_cache_empty))
-                } else {
-                    LazyVerticalGrid(
-                        columns = GridCells.Fixed(3),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp),
-                    ) {
-                        items(cachedFiles.size, key = { cachedFiles[it].name }) { index ->
-                            val file = cachedFiles[index]
-                            Box(
-                                modifier = Modifier
-                                    .aspectRatio(1f)
-                                    .clip(MaterialTheme.shapes.medium)
-                                    .clickable {
-                                        WallpaperCacheManager.deleteFile(file)
-                                        cachedFiles.removeAt(index)
-                                        cacheSizeMB.floatValue = WallpaperCacheManager.getCacheSizeMB()
-                                        cacheCount.intValue = WallpaperCacheManager.getCachedFilesCount()
-                                    },
-                            ) {
-                                AsyncImage(model = file, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
-                                Icon(Icons.Default.Close, null, tint = MaterialTheme.colorScheme.error,
-                                    modifier = Modifier.align(Alignment.TopEnd).padding(4.dp).size(16.dp)
-                                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.7f), CircleShape).padding(2.dp))
-                            }
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showCacheViewer = false }) { Text(stringResource(R.string.close)) }
-            },
-        )
-    }
-
-    Text(
-        text = pluralStringResource(
-            R.plurals.wallpaper_cache_size,
-            cacheCount.intValue,
-            String.format(LocalLocale.current.platformLocale, "%.1f", cacheSizeMB.floatValue),
-            cacheCount.intValue,
-        ),
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.padding(start = 16.dp, top = 8.dp),
-    )
-    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
-        Text(
-            text = stringResource(R.string.wallpaper_max_cache, maxSize.longValue),
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Slider(
-            value = maxSize.longValue.toFloat(),
-            onValueChange = { maxSize.longValue = it.toLong() },
-            onValueChangeFinished = { SettingsCacheSizeHelper.setMaxCacheSize(context, maxSize.longValue) },
-            valueRange = 10f..500f,
-            steps = 48,
-        )
-    }
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        OutlinedButton(onClick = { showCacheViewer = true }, modifier = Modifier.weight(1f)) {
-            Text(stringResource(R.string.wallpaper_view_cache))
-        }
-        OutlinedButton(onClick = { showClearConfirm = true }, modifier = Modifier.weight(1f)) {
-            Text(stringResource(R.string.wallpaper_clear_cache), color = MaterialTheme.colorScheme.error)
         }
     }
 }

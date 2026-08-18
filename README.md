@@ -155,6 +155,21 @@
 
 ---
 
+## 已移除的「二次元背景」实现（历史记录）
+
+为避免 APK 体积、随机图片破坏 UI 可读性，二次元在线壁纸模式已移除；「自定义背景」功能保留。
+
+原实现要点（若将来恢复，可参考 git 历史）：
+- 图片源：`https://www.loliapi.com/acg/pe/`
+- 流程：启动时请求 → `AnimeWallpaperState.currentUrl` 显示 → `WallpaperCacheManager.saveToCache()` 写入 `cacheDir/wallpaper_cache/`
+- 失败兜底：`WallpaperCacheManager.getRandomCachedFile()` 随机取一张缓存图
+- 组件：`ui/component/AnimeBackground.kt`（旧版）、设置开关 `我是二刺螈`（`SettingsStore.animeBackground`）、设置页 `WallpaperCacheSection`
+- 移除提交：`feature/ai-denoiser` 上对应 commit
+
+现在背景逻辑为：`CustomBackground()` 仅显示用户上传的自定义壁纸，无网络请求、无缓存。
+
+---
+
 ## 汉化及增强特性
 
 1. **简体中文本地化**：100% 补齐全文本简体中文翻译（`zh-rCN`）。

@@ -133,8 +133,9 @@ class ServerViewModel(application: Application) : AndroidViewModel(application) 
     val privateMessages: StateFlow<Map<Int, List<ChatMessage>>> = _privateMessages.asStateFlow()
 
     // Separate PTT mode from actual mute state
-    private val _isPttMode = MutableStateFlow(true) // true = PTT, false = voice activity
-    val isPttMode: StateFlow<Boolean> = _isPttMode.asStateFlow()
+    // Mic mute state is owned by AudioBridge; the UI reads it from there.
+    private val _isMicMuted = MutableStateFlow(true)
+    val isMicMuted: StateFlow<Boolean> = _isMicMuted.asStateFlow()
 
     private val _isOutputMuted = MutableStateFlow(false)
     val isOutputMuted: StateFlow<Boolean> = _isOutputMuted.asStateFlow()
@@ -147,6 +148,9 @@ class ServerViewModel(application: Application) : AndroidViewModel(application) 
 
     private val _connectionState = MutableStateFlow(ConnectionState.CONNECTED)
     val connectionState: StateFlow<Int> = _connectionState.asStateFlow()
+
+    private val _connectionStartedAtMillis = MutableStateFlow(0L)
+    val connectionStartedAtMillis: StateFlow<Long> = _connectionStartedAtMillis.asStateFlow()
 
     // Unread message counters
     private val _unreadChannel = MutableStateFlow(0)
@@ -164,9 +168,6 @@ class ServerViewModel(application: Application) : AndroidViewModel(application) 
         .stateIn(viewModelScope, SharingStarted.Eagerly, true)
 
     val enableFloatingWindow: StateFlow<Boolean> = settingsStore.enableFloatingWindow
-        .stateIn(viewModelScope, SharingStarted.Eagerly, true)
-
-    val animeBackground: StateFlow<Boolean> = settingsStore.animeBackground
         .stateIn(viewModelScope, SharingStarted.Eagerly, true)
 
     val noiseSuppression: StateFlow<Boolean> = settingsStore.noiseSuppression
@@ -265,6 +266,7 @@ class ServerViewModel(application: Application) : AndroidViewModel(application) 
             tsClient = service.tsClient
             audioBridge = service.audioBridge
             audioBridge?.setMutedUserIds(_mutedUserIds.value)
+            _connectionStartedAtMillis.value = service.connectionStartedAtMillis
             queriedPermChannels.clear()
 
             viewModelScope.launch {
@@ -272,33 +274,32 @@ class ServerViewModel(application: Application) : AndroidViewModel(application) 
                     Log.d(TAG, "Channels updated: ${channels.size}")
                     _channels.value = channels
                     loadChannelIcons(channels)
+                    persistServerSnapshot(service)
                 }
             }
             viewModelScope.launch {
                 service.tsClient.users.collect {
                     _rawUsers.value = it
                     loadAvatars(it)
+                    persistServerSnapshot(service)
                 }
             }
             viewModelScope.launch {
-                var bookmarkUpdated = false
                 service.tsClient.serverInfo.collect { info ->
                     _serverInfo.value = info
-                    if (info != null && !bookmarkUpdated) {
-                        bookmarkUpdated = true
-                        val addr = serverAddress ?: service.tsClient.serverAddress ?: ""
-                        if (addr.isNotEmpty()) {
-                            bookmarkStore.updateServerInfo(addr, info.name, info.iconId)
-                            // Download server icon if needed
-                            if (info.iconId != 0L) {
-                                iconCache.loadIcon(info.iconId, service.tsClient)
-                            }
-                        }
+                    persistServerSnapshot(service)
+                    if (info != null && info.iconId != 0L) {
+                        iconCache.loadIcon(info.iconId, service.tsClient)
                     }
                 }
             }
             viewModelScope.launch {
-                service.tsClient.state.collect { _connectionState.value = it }
+                service.tsClient.state.collect { state ->
+                    _connectionState.value = state
+                    if (state == ConnectionState.CONNECTED) {
+                        _connectionStartedAtMillis.value = service.connectionStartedAtMillis
+                    }
+                }
             }
             viewModelScope.launch {
                 service.tsClient.events.collect { event ->
@@ -344,6 +345,10 @@ class ServerViewModel(application: Application) : AndroidViewModel(application) 
             viewModelScope.launch {
                 service.audioBridge.isLocalVoiceActive.collect { _isLocalTalking.value = it }
             }
+            _isMicMuted.value = service.audioBridge.isMuted.value
+            viewModelScope.launch {
+                service.audioBridge.isMuted.collect { _isMicMuted.value = it }
+            }
             viewModelScope.launch {
                 service.audioBridge.isOutputMuted.collect { _isOutputMuted.value = it }
             }
@@ -352,6 +357,33 @@ class ServerViewModel(application: Application) : AndroidViewModel(application) 
             service.tsClient.startEventLoop()
             
             bound = true
+        }
+    }
+
+    private fun persistServerSnapshot(service: TsConnectionService) {
+        val info = _serverInfo.value ?: return
+        val addr = serverAddress ?: service.tsClient.serverAddress ?: return
+        if (addr.isEmpty()) return
+
+        // Rust sync_state does not populate online counts, so derive them
+        // from the live user/channel lists instead.
+        val snapshot = ServerInfo(
+            info.name,
+            info.platform,
+            info.version,
+            info.maxClients,
+            _rawUsers.value.size,
+            _channels.value.size,
+            info.uptime,
+            info.welcomeMessage,
+            info.iconId,
+        )
+        viewModelScope.launch {
+            try {
+                bookmarkStore.updateServerInfo(addr, snapshot)
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to persist server snapshot", e)
+            }
         }
     }
 
@@ -653,19 +685,14 @@ class ServerViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch { settingsStore.setEnableFloatingWindow(enabled) }
     }
 
-    fun setAnimeBackground(enabled: Boolean) {
-        viewModelScope.launch { settingsStore.setAnimeBackground(enabled) }
-    }
-
     fun setNoiseSuppression(enabled: Boolean) {
         viewModelScope.launch { settingsStore.setNoiseSuppression(enabled) }
     }
 
-    fun toggleVoiceMode() {
-        val newPttMode = !_isPttMode.value
-        _isPttMode.value = newPttMode
-        // When switching to PTT mode, mute. When switching to VA, unmute.
-        audioBridge?.setMuted(newPttMode)
+    fun toggleMicMute() {
+        // UI disables this button while output is muted; AudioBridge also
+        // enforces the invariant on its own as a safety net.
+        audioBridge?.toggleMute()
     }
 
     fun toggleOutputMute() {
@@ -683,7 +710,7 @@ class ServerViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun setPushToTalk(pressed: Boolean) {
-        // Only changes mute state, NOT isPttMode — avoids UI recomposition swap
+        // Only changes mute state; AudioBridge enforces the deafen invariant.
         audioBridge?.setMuted(!pressed)
     }
 

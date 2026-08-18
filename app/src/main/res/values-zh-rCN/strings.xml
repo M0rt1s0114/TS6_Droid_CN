@@ -17,6 +17,9 @@
     <!-- ConnectionScreen -->
     <string name="server_address">服务器地址</string>
     <string name="server_address_placeholder">localhost:9987</string>
+    <string name="current_nickname">当前昵称：%1$s</string>
+    <string name="card_icon_label">备用图标（可选）</string>
+    <string name="clear">清除</string>
     <string name="nickname">昵称</string>
     <string name="password_optional">密码（可选）</string>
     <string name="channel_optional">频道（可选）</string>
@@ -24,6 +27,7 @@
     <string name="browse_channels">浏览频道</string>
     <string name="connecting">正在连接…</string>
     <string name="connect">连接</string>
+    <string name="reenter">再次进入</string>
     <string name="add_bookmark">添加服务器</string>
     <string name="edit_bookmark">编辑服务器</string>
     <string name="save">保存</string>
@@ -42,14 +46,15 @@
     <string name="show_link_thumbnails">显示视频链接缩略图</string>
     <string name="auto_load_images">自动加载图片</string>
     <string name="enable_floating_window">启用悬浮窗</string>
-    <string name="anime_background">我是二刺螈</string>
     <string name="noise_suppression">麦克风降噪</string>
     <string name="chat">聊天</string>
     <string name="push_to_talk">按住说话</string>
     <string name="ptt">按键说话</string>
+    <string name="ptt_active">说话中</string>
     <string name="mute_mic">静音麦克风</string>
     <string name="mute">静音</string>
     <string name="input_muted_state">已静音</string>
+    <string name="mic_open">麦克风开启</string>
     <string name="unmute_mic">取消静音</string>
     <string name="tab_channel">频道</string>
     <string name="tab_private">私信</string>
@@ -57,14 +62,6 @@
     <string name="tab_settings">设置</string>
     <string name="no_connection">暂无连接</string>
     <string name="no_connection_hint">点击右下角 + 添加你的第一个服务器</string>
-    <plurals name="wallpaper_cache_size">
-        <item quantity="other">壁纸缓存：%1$s MB（%2$d 张）</item>
-    </plurals>
-    <string name="wallpaper_max_cache">最大缓存：%1$d MB</string>
-    <string name="wallpaper_view_cache">查看壁纸缓存</string>
-    <string name="wallpaper_clear_cache">清空壁纸缓存</string>
-    <string name="wallpaper_clear_cache_confirm">确定要清空所有壁纸缓存吗？此操作不可恢复。</string>
-    <string name="wallpaper_cache_empty">暂无缓存壁纸</string>
     <string name="confirm">确定</string>
     <string name="custom_bg_title">自定义背景</string>
     <string name="custom_bg_upload">从相册选择</string>

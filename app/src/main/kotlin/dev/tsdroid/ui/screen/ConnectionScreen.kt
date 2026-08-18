@@ -5,6 +5,9 @@ import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,6 +22,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -30,10 +34,11 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.outlined.Schedule
+import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -46,6 +51,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
@@ -75,14 +81,16 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.tsdroid.han.R
 import dev.tslib.ConnectionState
-import dev.tsdroid.ui.component.AnimeBackground
 import dev.tsdroid.ui.component.AnimeWallpaperState
 import dev.tsdroid.ui.component.ChannelTree
+import dev.tsdroid.ui.component.CustomBackground
+import dev.tsdroid.ui.component.FloatingTile
 import dev.tsdroid.viewmodel.ConnectionViewModel
 import kotlinx.coroutines.launch
 
@@ -106,6 +114,8 @@ fun ConnectionScreen(
     val browsedChannels by viewModel.browsedChannels.collectAsStateWithLifecycle()
     val isBrowsing by viewModel.isBrowsing.collectAsStateWithLifecycle()
     val showChannelPicker by viewModel.showChannelPicker.collectAsStateWithLifecycle()
+    val activeAddress by viewModel.activeAddress.collectAsStateWithLifecycle()
+    val selectedIconEmoji by viewModel.iconEmoji.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     var deleteConfirmIndex by remember { mutableStateOf<Int?>(null) }
     var showBottomSheet by remember { mutableStateOf(false) }
@@ -115,8 +125,6 @@ fun ConnectionScreen(
 
     val isConnecting = connectionState == ConnectionState.CONNECTING
     val context = LocalContext.current
-    val settingsStore = remember { dev.tsdroid.data.SettingsStore(context) }
-    val animeBackground by settingsStore.animeBackground.collectAsStateWithLifecycle(initialValue = true)
 
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -145,12 +153,12 @@ fun ConnectionScreen(
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        AnimeBackground(enabled = animeBackground)
+        CustomBackground()
 
         Scaffold(
             containerColor = Color.Transparent,
             topBar = {
-                val adaptiveTopBarColor = if (animeBackground) {
+                val adaptiveTopBarColor = if (AnimeWallpaperState.customBitmap.value != null) {
                     AnimeWallpaperState.recommendedContentColor.value
                         ?: MaterialTheme.colorScheme.onSurface
                 } else {
@@ -196,17 +204,9 @@ fun ConnectionScreen(
             },
         ) { padding ->
             Box(modifier = Modifier.fillMaxSize().padding(padding)) {
-                // Tab 0: Home
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .graphicsLayer { alpha = if (selectedTab == 0) 1f else 0f }
-                        .then(
-                            if (selectedTab == 0) Modifier else Modifier.graphicsLayer {
-                                translationY = -size.height
-                            }
-                        ),
-                ) {
+                if (selectedTab == 0) {
+                    // Tab 0: Home
+                    Box(modifier = Modifier.fillMaxSize()) {
                     if (bookmarks.isEmpty()) {
                         Box(
                             modifier = Modifier.fillMaxSize(),
@@ -240,6 +240,12 @@ fun ConnectionScreen(
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
+                                Spacer(Modifier.height(4.dp))
+                                Button(onClick = { showBottomSheet = true }) {
+                                    Icon(Icons.Default.Add, contentDescription = null)
+                                    Spacer(Modifier.width(4.dp))
+                                    Text(stringResource(R.string.manual_connection))
+                                }
                             }
                         }
                     } else {
@@ -247,113 +253,187 @@ fun ConnectionScreen(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .padding(horizontal = 16.dp)
+                                .padding(bottom = 88.dp)
                                 .verticalScroll(rememberScrollState()),
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
                             bookmarks.forEachIndexed { index, bookmark ->
-                                    Card(
+                                val icon = if (bookmark.iconId != 0L) bookmarkIcons[bookmark.iconId] else null
+                                val active = activeAddress == bookmark.address
+                                val statusColor = when {
+                                    active -> Color(0xFF4CAF50)
+                                    bookmark.lastSeenAt > 0 -> Color(0xFFFFB300)
+                                    else -> MaterialTheme.colorScheme.outline
+                                }
+
+                                FloatingTile(modifier = Modifier.fillMaxWidth()) {
+                                    Row(
                                         modifier = Modifier.fillMaxWidth(),
-                                        shape = MaterialTheme.shapes.large,
-                                        colors = CardDefaults.cardColors(
-                                            containerColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.92f),
-                                        ),
-                                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
                                     ) {
-                                        Row(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(12.dp),
-                                            verticalAlignment = Alignment.CenterVertically,
+                                        Surface(
+                                            shape = RoundedCornerShape(14.dp),
+                                            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                            modifier = Modifier.size(48.dp),
                                         ) {
-                                            val icon = if (bookmark.iconId != 0L) bookmarkIcons[bookmark.iconId] else null
-                                            if (icon != null) {
-                                                Image(
-                                                    bitmap = icon,
-                                                    contentDescription = null,
-                                                    modifier = Modifier.size(32.dp),
-                                                    contentScale = ContentScale.Fit,
-                                                )
-                                            } else {
-                                                Icon(
-                                                    Icons.Default.Star,
-                                                    contentDescription = null,
-                                                    modifier = Modifier.size(32.dp),
-                                                    tint = MaterialTheme.colorScheme.primary,
-                                                )
-                                            }
-                                            Spacer(Modifier.width(12.dp))
-                                            Column(modifier = Modifier.weight(1f)) {
-                                                Text(
-                                                    bookmark.serverName ?: bookmark.name,
-                                                    style = MaterialTheme.typography.bodyLarge,
-                                                )
-                                                Text(
-                                                    bookmark.address,
-                                                    style = MaterialTheme.typography.bodySmall,
-                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                )
-                                            }
-                                            FilledTonalButton(
-                                                onClick = { viewModel.connectBookmark(bookmark, onConnected) },
-                                                enabled = !isConnecting,
-                                            ) {
-                                                Text(stringResource(R.string.connect))
-                                            }
-                                            Box {
-                                                var menuExpanded by remember { mutableStateOf(false) }
-                                                IconButton(onClick = { menuExpanded = true }) {
-                                                    Icon(Icons.Default.MoreVert, contentDescription = null)
-                                                }
-                                                DropdownMenu(
-                                                    expanded = menuExpanded,
-                                                    onDismissRequest = { menuExpanded = false },
-                                                ) {
-                                                    DropdownMenuItem(
-                                                        text = { Text(stringResource(R.string.edit)) },
-                                                        onClick = {
-                                                            menuExpanded = false
-                                                            viewModel.editBookmark(bookmark, index)
-                                                            showBottomSheet = true
-                                                        },
-                                                        leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) },
+                                            Box(contentAlignment = Alignment.Center) {
+                                                if (icon != null) {
+                                                    Image(
+                                                        bitmap = icon,
+                                                        contentDescription = null,
+                                                        modifier = Modifier.size(32.dp),
+                                                        contentScale = ContentScale.Fit,
                                                     )
-                                                    DropdownMenuItem(
-                                                        text = { Text(stringResource(R.string.remove)) },
-                                                        onClick = {
-                                                            menuExpanded = false
-                                                            deleteConfirmIndex = index
-                                                        },
-                                                        leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null) },
+                                                } else if (!bookmark.iconEmoji.isNullOrEmpty()) {
+                                                    Text(
+                                                        text = bookmark.iconEmoji,
+                                                        style = MaterialTheme.typography.headlineSmall,
+                                                    )
+                                                } else {
+                                                    Icon(
+                                                        Icons.Outlined.Star,
+                                                        contentDescription = null,
+                                                        tint = MaterialTheme.colorScheme.primary,
+                                                        modifier = Modifier.size(28.dp),
                                                     )
                                                 }
                                             }
                                         }
+                                        Spacer(Modifier.width(12.dp))
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Text(
+                                                    text = bookmark.serverName ?: bookmark.name,
+                                                    style = MaterialTheme.typography.titleMedium,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis,
+                                                )
+                                                Spacer(Modifier.width(6.dp))
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(8.dp)
+                                                        .background(statusColor, CircleShape),
+                                                )
+                                            }
+                                            Text(
+                                                text = bookmark.address,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis,
+                                            )
+                                            Text(
+                                                text = stringResource(R.string.current_nickname, bookmark.nickname),
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.primary,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis,
+                                            )
+                                        }
+
+                                        var menuExpanded by remember { mutableStateOf(false) }
+                                        Box {
+                                            IconButton(onClick = { menuExpanded = true }) {
+                                                Icon(Icons.Default.MoreVert, contentDescription = null)
+                                            }
+                                            DropdownMenu(
+                                                expanded = menuExpanded,
+                                                onDismissRequest = { menuExpanded = false },
+                                            ) {
+                                                DropdownMenuItem(
+                                                    text = { Text(stringResource(R.string.edit)) },
+                                                    onClick = {
+                                                        menuExpanded = false
+                                                        viewModel.editBookmark(bookmark, index)
+                                                        showBottomSheet = true
+                                                    },
+                                                    leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) },
+                                                )
+                                                DropdownMenuItem(
+                                                    text = { Text(stringResource(R.string.remove)) },
+                                                    onClick = {
+                                                        menuExpanded = false
+                                                        deleteConfirmIndex = index
+                                                    },
+                                                    leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null) },
+                                                )
+                                            }
+                                        }
+                                    }
+
+                                    Spacer(Modifier.height(10.dp))
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    ) {
+                                        StatChip(
+                                            icon = Icons.Outlined.Person,
+                                            text = when {
+                                                bookmark.maxClients > 0 -> "${bookmark.clientsOnline}/${bookmark.maxClients}"
+                                                bookmark.clientsOnline > 0 -> "${bookmark.clientsOnline}"
+                                                else -> "--"
+                                            },
+                                            modifier = Modifier.weight(1f),
+                                        )
+                                        StatChip(
+                                            icon = Icons.Outlined.Schedule,
+                                            text = formatConnectedTime(bookmark.connectedSeconds),
+                                            modifier = Modifier.weight(1f),
+                                        )
+                                    }
+                                    Spacer(Modifier.height(10.dp))
+
+                                    if (active) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        ) {
+                                            Button(
+                                                onClick = { onConnected() },
+                                                modifier = Modifier.weight(1f),
+                                            ) {
+                                                Text(stringResource(R.string.reenter))
+                                            }
+                                            OutlinedButton(
+                                                onClick = { viewModel.disconnectActive() },
+                                                modifier = Modifier.weight(1f),
+                                            ) {
+                                                Text(stringResource(R.string.disconnect))
+                                            }
+                                        }
+                                    } else {
+                                        Button(
+                                            onClick = { viewModel.connectBookmark(bookmark, onConnected) },
+                                            enabled = !isConnecting,
+                                            modifier = Modifier.fillMaxWidth(),
+                                        ) {
+                                            if (isConnecting) {
+                                                CircularProgressIndicator(
+                                                    modifier = Modifier.size(16.dp),
+                                                    strokeWidth = 2.dp,
+                                                )
+                                                Spacer(Modifier.width(8.dp))
+                                            }
+                                            Text(stringResource(R.string.connect))
+                                        }
                                     }
                                 }
+                                Spacer(Modifier.height(10.dp))
+                            }
                             }
                             Spacer(Modifier.height(16.dp))
                         }
                     }
 
-                // Tab 1: Settings (always in composition, hidden when not selected)
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .graphicsLayer { alpha = if (selectedTab == 1) 1f else 0f }
-                        .then(
-                            if (selectedTab == 1) Modifier else Modifier.graphicsLayer {
-                                translationY = size.height
-                            }
-                        ),
-                ) {
+                } else {
+                    // Tab 1: Settings
                     SettingsPage(
-                        onNavigateToAbout = onNavigateToAbout,
-                        autoReconnect = autoReconnect,
-                        onAutoReconnectChange = { viewModel.setAutoReconnect(it) },
+                    onNavigateToAbout = onNavigateToAbout,
+                    autoReconnect = autoReconnect,
+                    onAutoReconnectChange = { viewModel.setAutoReconnect(it) },
                     )
                 }
             }
-
             deleteConfirmIndex?.let { idx ->
                 val bookmarkName = bookmarks.getOrNull(idx)?.let { it.serverName ?: it.name } ?: ""
                 AlertDialog(
@@ -459,6 +539,41 @@ fun ConnectionScreen(
                             colors = glassTextFieldColors,
                         )
 
+                        val emojiOptions = remember {
+                            listOf("⭐", "🎮", "🎧", "💬", "🚀", "🔥", "🛡️", "📡", "🎵")
+                        }
+                        Text(
+                            stringResource(R.string.card_icon_label),
+                            style = MaterialTheme.typography.labelLarge,
+                        )
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            emojiOptions.forEach { emoji ->
+                                val selected = selectedIconEmoji == emoji
+                                Surface(
+                                    shape = CircleShape,
+                                    color = if (selected) MaterialTheme.colorScheme.primaryContainer
+                                    else MaterialTheme.colorScheme.surfaceContainerHigh,
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .clickable { viewModel.iconEmoji.value = emoji },
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Text(emoji, style = MaterialTheme.typography.titleMedium)
+                                    }
+                                }
+                            }
+                            if (selectedIconEmoji != null) {
+                                TextButton(onClick = { viewModel.iconEmoji.value = null }) {
+                                    Text(stringResource(R.string.clear))
+                                }
+                            }
+                        }
+
                         OutlinedTextField(
                             value = password,
                             onValueChange = { viewModel.password.value = it },
@@ -539,4 +654,57 @@ fun ConnectionScreen(
             }
         }
     }
+}
+
+@Composable
+private fun StatChip(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    text: String,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(10.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center,
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(14.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.width(4.dp))
+            Text(
+                text = text,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+private fun formatConnectedTime(totalSeconds: Long): String {
+    if (totalSeconds <= 0) return "-/-/-/-/-"
+    var seconds = totalSeconds
+    val years = seconds / (365 * 86_400)
+    seconds %= (365 * 86_400)
+    val days = seconds / 86_400
+    seconds %= 86_400
+    val hours = seconds / 3_600
+    seconds %= 3_600
+    val minutes = seconds / 60
+    seconds %= 60
+
+    val parts = mutableListOf<String>()
+    if (years > 0) parts += "${years}y"
+    if (days > 0) parts += "${days}d"
+    if (hours > 0) parts += "${hours}h"
+    if (minutes > 0) parts += "${minutes}m"
+    if (seconds > 0 || parts.isEmpty()) parts += "${seconds}s"
+    return parts.joinToString(" ")
 }
