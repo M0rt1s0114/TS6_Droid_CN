@@ -24,6 +24,7 @@ import coil.compose.AsyncImage
 import dev.tsdroid.data.SettingsStore
 import dev.tsdroid.han.R
 import dev.tsdroid.ui.component.AnimeBackground
+import dev.tsdroid.ui.component.AnimeWallpaperState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -77,30 +78,34 @@ fun AboutScreen(onBack: () -> Unit) {
     Box(modifier = Modifier.fillMaxSize()) {
         AnimeBackground(enabled = animeBackground)
 
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(24.dp)
-                .verticalScroll(scrollState)
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
+        val adaptiveContentColor = AnimeWallpaperState.recommendedContentColor.value
+            ?: MaterialTheme.colorScheme.onSurface
+
+        CompositionLocalProvider(LocalContentColor provides adaptiveContentColor) {
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .statusBarsPadding()
+                    .fillMaxSize()
+                    .padding(24.dp)
+                    .verticalScroll(scrollState)
             ) {
-                Text(
-                    text = stringResource(R.string.about_back),
-                    color = MaterialTheme.colorScheme.primary,
-                    style = MaterialTheme.typography.labelLarge,
-                    modifier = Modifier.clickable { onBack() }.padding(8.dp)
-                )
-                Spacer(modifier = Modifier.width(24.dp))
-                Text(
-                    text = stringResource(R.string.about_software),
-                    style = MaterialTheme.typography.headlineSmall,
-                )
-            }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .statusBarsPadding()
+                ) {
+                    Text(
+                        text = stringResource(R.string.about_back),
+                        color = adaptiveContentColor,
+                        style = MaterialTheme.typography.labelLarge,
+                        modifier = Modifier.clickable { onBack() }.padding(8.dp)
+                    )
+                    Spacer(modifier = Modifier.width(24.dp))
+                    Text(
+                        text = stringResource(R.string.about_software),
+                        style = MaterialTheme.typography.headlineSmall,
+                    )
+                }
 
             Spacer(modifier = Modifier.height(28.dp))
 
@@ -227,6 +232,7 @@ fun AboutScreen(onBack: () -> Unit) {
                     )
                 }
             }
+        }
         }
     }
 }

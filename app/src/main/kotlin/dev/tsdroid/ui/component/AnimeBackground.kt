@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -16,6 +17,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import coil.compose.AsyncImage
@@ -31,6 +33,13 @@ object AnimeWallpaperState {
     val currentUrl = mutableStateOf<String?>(null)
     val customBitmap = mutableStateOf<androidx.compose.ui.graphics.ImageBitmap?>(null)
     val dominantColor = mutableStateOf<Color?>(null)
+
+    /** Average relative luminance of the current wallpaper, 0 = black, 1 = white. */
+    val backgroundLuminance = mutableStateOf(0.5f)
+
+    /** Best readable text color directly on top of the current wallpaper. */
+    val recommendedContentColor = mutableStateOf<Color?>(null)
+
     private var fetched = false
 
     suspend fun ensureFetched(context: Context) {
@@ -109,11 +118,24 @@ object AnimeWallpaperState {
             }
         }
         if (count > 0) {
+            val rn = r.toFloat() / count / 255f
+            val gn = g.toFloat() / count / 255f
+            val bn = b.toFloat() / count / 255f
             dominantColor.value = Color(
-                red = (r.toFloat() / count / 255f).coerceIn(0f, 1f),
-                green = (g.toFloat() / count / 255f).coerceIn(0f, 1f),
-                blue = (b.toFloat() / count / 255f).coerceIn(0f, 1f),
+                red = rn.coerceIn(0f, 1f),
+                green = gn.coerceIn(0f, 1f),
+                blue = bn.coerceIn(0f, 1f),
             )
+
+            // Relative luminance (Rec. 709) tells us whether dark or light
+            // text wins on this particular wallpaper.
+            val luminance = 0.2126f * rn + 0.7152f * gn + 0.0722f * bn
+            backgroundLuminance.value = luminance
+            recommendedContentColor.value = if (luminance > 0.5f) {
+                Color(0xFF141414) // bright image → dark text
+            } else {
+                Color(0xFFF4F4F5) // dark image → light text
+            }
         }
     }
 
@@ -175,15 +197,30 @@ fun AnimeBackground(enabled: Boolean) {
             )
         }
 
+        // Adaptive readability scrim. If the theme draws light text, bright
+        // wallpapers get a darker scrim; if it draws dark text, dark
+        // wallpapers get a lighter scrim. Dark/light judgment follows the
+        // actual onSurface color, so it works for system, forced and AMOLED
+        // theme modes without extra plumbing.
+        val textIsLight = MaterialTheme.colorScheme.onSurface.luminance() > 0.5f
+        val wallpaperLuminance = AnimeWallpaperState.backgroundLuminance.value
+        val boost = if (textIsLight) {
+            ((wallpaperLuminance - 0.35f) / 0.65f).coerceIn(0f, 1f)
+        } else {
+            ((0.65f - wallpaperLuminance) / 0.65f).coerceIn(0f, 1f)
+        }
+        val scrimColor = if (textIsLight) Color.Black else Color.White
+        val scrimAlpha = 0.06f + 0.34f * boost
+
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(
-                            Color.White.copy(alpha = 0.08f),
-                            Color.White.copy(alpha = 0.03f),
-                            Color.White.copy(alpha = 0.08f),
+                            scrimColor.copy(alpha = scrimAlpha),
+                            scrimColor.copy(alpha = scrimAlpha * 0.35f),
+                            scrimColor.copy(alpha = scrimAlpha),
                         )
                     )
                 )

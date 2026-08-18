@@ -88,6 +88,7 @@ import dev.tsdroid.han.R
 import dev.tslib.ConnectionState
 import dev.tslib.User
 import dev.tsdroid.ui.component.AnimeBackground
+import dev.tsdroid.ui.component.AnimeWallpaperState
 import dev.tsdroid.ui.component.ChannelTree
 import dev.tsdroid.ui.component.ChatView
 import dev.tsdroid.ui.component.FileManagerDialog
@@ -194,11 +195,15 @@ fun ServerScreen(
         Scaffold(
             containerColor = Color.Transparent,
         topBar = {
+            val adaptiveTopBarColor = AnimeWallpaperState.recommendedContentColor.value
+                ?: MaterialTheme.colorScheme.onSurface
             TopAppBar(
                 title = { Text(serverInfo?.name ?: stringResource(R.string.server)) },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color.Transparent,
                     scrolledContainerColor = Color.Transparent,
+                    titleContentColor = adaptiveTopBarColor,
+                    actionIconContentColor = adaptiveTopBarColor,
                 ),
                 actions = {
                     IconButton(onClick = { viewModel.toggleFileManager() }) {

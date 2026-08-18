@@ -81,6 +81,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.tsdroid.han.R
 import dev.tslib.ConnectionState
 import dev.tsdroid.ui.component.AnimeBackground
+import dev.tsdroid.ui.component.AnimeWallpaperState
 import dev.tsdroid.ui.component.ChannelTree
 import dev.tsdroid.viewmodel.ConnectionViewModel
 import kotlinx.coroutines.launch
@@ -149,6 +150,8 @@ fun ConnectionScreen(
         Scaffold(
             containerColor = Color.Transparent,
             topBar = {
+                val adaptiveTopBarColor = AnimeWallpaperState.recommendedContentColor.value
+                    ?: MaterialTheme.colorScheme.onSurface
                 TopAppBar(
                     title = {
                         Text(
@@ -159,6 +162,7 @@ fun ConnectionScreen(
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = Color.Transparent,
                         scrolledContainerColor = Color.Transparent,
+                        titleContentColor = adaptiveTopBarColor,
                     ),
                 )
             },
