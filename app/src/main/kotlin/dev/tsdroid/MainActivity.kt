@@ -11,9 +11,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import dev.tsdroid.data.SettingsStore
 import dev.tsdroid.viewmodel.ConnectionViewModel
+import dev.tsdroid.ui.theme.AppThemeMode
 import dev.tsdroid.ui.theme.TsDroidTheme
 import dev.tsdroid.ui.screen.AppNavigation
 import dev.tsdroid.ui.screen.SplashScreen
@@ -34,6 +36,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private val connectionViewModel: ConnectionViewModel by viewModels()
+    private val settingsStore by lazy { SettingsStore(applicationContext) }
     private val TAG = "MainActivity"
 
     override fun attachBaseContext(newBase: Context) {
@@ -65,8 +68,14 @@ class MainActivity : ComponentActivity() {
         setContent {
             var showSplash by remember { mutableStateOf(true) }
             val seedColor = AnimeWallpaperState.dominantColor.value
+            val themeMode by settingsStore.themeMode.collectAsStateWithLifecycle(
+                initialValue = AppThemeMode.SYSTEM.storageValue,
+            )
 
-            TsDroidTheme(seedColor = if (showSplash) null else seedColor) {
+            TsDroidTheme(
+                themeMode = AppThemeMode.fromStorage(themeMode),
+                seedColor = if (showSplash) null else seedColor,
+            ) {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     if (showSplash) {
                         SplashScreen(onReady = { showSplash = false })

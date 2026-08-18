@@ -60,6 +60,11 @@
     <string name="crop_title">Crop Background</string>
     <string name="crop_hint">Drag the white frame to select the area</string>
     <string name="section_appearance">Appearance</string>
+    <string name="theme_mode">Theme</string>
+    <string name="theme_mode_system">Follow system</string>
+    <string name="theme_mode_light">Light</string>
+    <string name="theme_mode_dark">Dark</string>
+    <string name="theme_mode_amoled">AMOLED pure black</string>
     <string name="section_audio">Audio</string>
     <string name="section_chat">Chat</string>
     <string name="section_more">More</string>

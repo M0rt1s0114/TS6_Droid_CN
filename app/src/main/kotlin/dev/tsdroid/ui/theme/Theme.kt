@@ -170,21 +170,89 @@ fun generateColorScheme(seed: Color, isDark: Boolean): androidx.compose.material
     }
 }
 
+enum class AppThemeMode(val storageValue: String) {
+    SYSTEM("system"),
+    LIGHT("light"),
+    DARK("dark"),
+    AMOLED("amoled");
+
+    companion object {
+        fun fromStorage(value: String?): AppThemeMode =
+            entries.firstOrNull { it.storageValue == value } ?: SYSTEM
+    }
+}
+
 @Composable
 fun TsDroidTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    themeMode: AppThemeMode = AppThemeMode.SYSTEM,
     seedColor: Color? = null,
     content: @Composable () -> Unit,
 ) {
-    val colorScheme = if (seedColor != null) {
-        generateColorScheme(seedColor, darkTheme)
+    val systemDark = isSystemInDarkTheme()
+    val darkTheme = when (themeMode) {
+        AppThemeMode.LIGHT -> false
+        AppThemeMode.DARK, AppThemeMode.AMOLED -> true
+        AppThemeMode.SYSTEM -> systemDark
+    }
+
+    val baseSeed = seedColor ?: Color(0xFF6750A4)
+    val colorScheme = if (themeMode == AppThemeMode.AMOLED) {
+        pureBlackColorScheme(baseSeed)
     } else {
-        generateColorScheme(Color(0xFF6750A4), darkTheme)
+        generateColorScheme(baseSeed, darkTheme)
     }
 
     MaterialTheme(
         colorScheme = colorScheme,
         typography = AppTypography,
         content = content,
+    )
+}
+
+/**
+ * AMOLED-friendly scheme: true black surfaces so OLED pixels turn off,
+ * with only the hierarchy tones slightly lifted to keep cards readable.
+ */
+private fun pureBlackColorScheme(seed: Color): androidx.compose.material3.ColorScheme {
+    val (h, s, _) = seed.hsl()
+    fun tone(lightness: Float) = hslToColor(h, (s * 0.8f).coerceAtMost(1f), lightness)
+    fun secTone(lightness: Float) = hslToColor((h + 30f) % 360f, (s * 0.6f).coerceAtMost(1f), lightness)
+    fun terTone(lightness: Float) = hslToColor((h + 60f) % 360f, (s * 0.5f).coerceAtMost(1f), lightness)
+
+    return darkColorScheme(
+        primary = tone(0.82f),
+        onPrimary = hslToColor(h, 0.6f, 0.12f),
+        primaryContainer = tone(0.22f),
+        onPrimaryContainer = hslToColor(h, 0.6f, 0.9f),
+        secondary = secTone(0.75f),
+        onSecondary = Color.Black,
+        secondaryContainer = secTone(0.2f),
+        onSecondaryContainer = hslToColor((h + 30f) % 360f, 0.5f, 0.85f),
+        tertiary = terTone(0.75f),
+        onTertiary = Color.Black,
+        tertiaryContainer = terTone(0.2f),
+        onTertiaryContainer = hslToColor((h + 60f) % 360f, 0.4f, 0.85f),
+        error = Color(0xFFFFB4AB),
+        onError = Color(0xFF690005),
+        errorContainer = Color(0xFF93000A),
+        onErrorContainer = Color(0xFFFFDAD6),
+        background = Color.Black,
+        onBackground = Color(0xFFE6E1E5),
+        surface = Color.Black,
+        onSurface = Color(0xFFE6E1E5),
+        surfaceVariant = Color(0xFF111111),
+        onSurfaceVariant = Color(0xFFCAC4D0),
+        outline = Color(0xFF938F99),
+        outlineVariant = Color(0xFF252525),
+        inverseSurface = Color(0xFFE6E1E5),
+        inverseOnSurface = Color(0xFF1C1B1F),
+        inversePrimary = tone(0.4f),
+        surfaceDim = Color.Black,
+        surfaceBright = Color(0xFF2A2A2A),
+        surfaceContainerLowest = Color.Black,
+        surfaceContainerLow = Color(0xFF0A0A0A),
+        surfaceContainer = Color(0xFF111111),
+        surfaceContainerHigh = Color(0xFF1A1A1A),
+        surfaceContainerHighest = Color(0xFF232323),
     )
 }

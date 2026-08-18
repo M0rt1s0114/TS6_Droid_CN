@@ -76,6 +76,11 @@
     <string name="crop_title">Recadrer le fond</string>
     <string name="crop_hint">Glissez le cadre blanc pour sélectionner la zone</string>
     <string name="section_appearance">Apparence</string>
+    <string name="theme_mode">Thème</string>
+    <string name="theme_mode_system">Suivre le système</string>
+    <string name="theme_mode_light">Clair</string>
+    <string name="theme_mode_dark">Sombre</string>
+    <string name="theme_mode_amoled">AMOLED noir pur</string>
     <string name="section_audio">Audio</string>
     <string name="section_chat">Chat</string>
     <string name="section_more">Plus</string>

@@ -57,6 +57,17 @@ fun SettingsPage(
     val noiseSuppression by settingsStore.noiseSuppression.collectAsStateWithLifecycle(initialValue = true)
     val audioGain by settingsStore.audioGain.collectAsStateWithLifecycle(initialValue = 1.0f)
 
+    val themeOptions = listOf(
+        "system" to stringResource(R.string.theme_mode_system),
+        "light" to stringResource(R.string.theme_mode_light),
+        "dark" to stringResource(R.string.theme_mode_dark),
+        "amoled" to stringResource(R.string.theme_mode_amoled),
+    )
+    val selectedThemeMode by settingsStore.themeMode.collectAsStateWithLifecycle(initialValue = "system")
+    val selectedThemeLabel = themeOptions.firstOrNull { it.first == selectedThemeMode }?.second
+        ?: stringResource(R.string.theme_mode_system)
+    var themeMenuExpanded by remember { mutableStateOf(false) }
+
     val languageOptions = listOf(
         "zh" to stringResource(R.string.language_simplified_chinese),
         "en" to stringResource(R.string.language_english),
@@ -109,6 +120,35 @@ fun SettingsPage(
         ) {
             Column(modifier = Modifier.padding(vertical = 4.dp)) {
                 SettingsSectionTitle(stringResource(R.string.section_appearance))
+
+                // 主题模式
+                SettingsClickableRow(
+                    label = stringResource(R.string.theme_mode),
+                    trailing = {
+                        Box {
+                            Text(
+                                text = selectedThemeLabel,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.clickable { themeMenuExpanded = true },
+                            )
+                            DropdownMenu(
+                                expanded = themeMenuExpanded,
+                                onDismissRequest = { themeMenuExpanded = false },
+                            ) {
+                                themeOptions.forEach { (mode, label) ->
+                                    DropdownMenuItem(
+                                        text = { Text(label) },
+                                        onClick = {
+                                            scope.launch { settingsStore.setThemeMode(mode) }
+                                            themeMenuExpanded = false
+                                        },
+                                    )
+                                }
+                            }
+                        }
+                    },
+                )
 
                 // 悬浮窗
                 SettingsSwitchRow(
