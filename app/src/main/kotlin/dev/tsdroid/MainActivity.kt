@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.lifecycleScope
 import dev.tsdroid.data.SettingsStore
 import dev.tsdroid.viewmodel.ConnectionViewModel
 import dev.tsdroid.ui.theme.TsDroidTheme
@@ -19,7 +20,9 @@ import dev.tsdroid.ui.screen.SplashScreen
 import dev.tsdroid.ui.component.AnimeWallpaperState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import android.content.Intent
 import android.provider.Settings
 import dev.tsdroid.service.TsConnectionService
@@ -82,20 +85,29 @@ class MainActivity : ComponentActivity() {
     override fun onStop() {
         super.onStop()
         Log.d(TAG, "onStop: showing floating window")
-        if (!isChangingConfigurations) {
-            val enableFloatingWindow = runBlocking(Dispatchers.IO) {
-                SettingsStore(this@MainActivity).enableFloatingWindow.first()
-            }
-            if (enableFloatingWindow) {
-                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
-                    Log.w(TAG, "Overlay permission not granted, prompting user")
-                    val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, android.net.Uri.parse("package:$packageName"))
-                    startActivity(intent)
-                } else {
-                    connectionViewModel.showFloatingWindow()
+        if (isChangingConfigurations) return
+
+        // Read the setting off the main thread; the activity is already stopping,
+        // so a short delay before showing the overlay is fine.
+        lifecycleScope.launch {
+            val enableFloatingWindow = try {
+                withContext(Dispatchers.IO) {
+                    SettingsStore(this@MainActivity).enableFloatingWindow.first()
                 }
-            } else {
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to read floating window setting", e)
+                false
+            }
+            if (!enableFloatingWindow) {
                 Log.d(TAG, "Floating window is disabled in settings")
+                return@launch
+            }
+            if (!Settings.canDrawOverlays(this@MainActivity)) {
+                Log.w(TAG, "Overlay permission not granted, prompting user")
+                val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, android.net.Uri.parse("package:$packageName"))
+                startActivity(intent)
+            } else {
+                connectionViewModel.showFloatingWindow()
             }
         }
     }

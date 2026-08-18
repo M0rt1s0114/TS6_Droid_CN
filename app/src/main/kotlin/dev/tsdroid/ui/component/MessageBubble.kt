@@ -102,10 +102,10 @@ private fun extractThumbnailUrl(url: String): String? {
 @Composable
 fun MessageBubble(
     message: ChatMessage,
+    modifier: Modifier = Modifier,
     showLinkThumbnails: Boolean = false,
     autoLoadImages: Boolean = true,
     onDownload: ((FileAttachment) -> StateFlow<DownloadState>)? = null,
-    modifier: Modifier = Modifier,
 ) {
     val isMe = message.isMe
     val timeFormat = remember { SimpleDateFormat("HH:mm", Locale.getDefault()) }

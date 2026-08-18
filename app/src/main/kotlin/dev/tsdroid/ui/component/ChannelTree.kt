@@ -43,13 +43,13 @@ fun ChannelTree(
     channels: List<Channel>,
     users: List<User>,
     onChannelClick: (Long) -> Unit,
+    modifier: Modifier = Modifier,
     onUserClick: ((User) -> Unit)? = null,
     onUserLongClick: ((User) -> Unit)? = null,
     mutedUserIds: Set<Int> = emptySet(),
     channelIcons: Map<Long, ImageBitmap> = emptyMap(),
     userAvatars: Map<String, ImageBitmap> = emptyMap(),
     onWhisperClick: ((Int) -> Unit)? = null,
-    modifier: Modifier = Modifier,
 ) {
     // Filter nulls early — JNI arrays can contain null elements
     @Suppress("USELESS_CAST")

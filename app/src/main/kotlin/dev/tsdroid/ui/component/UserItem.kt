@@ -53,8 +53,8 @@ import androidx.compose.material3.IconButton
 @Composable
 fun UserItem(
     user: User,
-    avatar: ImageBitmap? = null,
     modifier: Modifier = Modifier,
+    avatar: ImageBitmap? = null,
     onClick: (() -> Unit)? = null,
     onToggleMute: (() -> Unit)? = null,
     onWhisperClick: ((Int) -> Unit)? = null,

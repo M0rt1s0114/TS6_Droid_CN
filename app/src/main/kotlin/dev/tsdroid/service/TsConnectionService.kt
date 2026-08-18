@@ -30,6 +30,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -356,11 +357,8 @@ class TsConnectionService : LifecycleService(), ViewModelStoreOwner, SavedStateR
     }
 
     private fun startServiceForeground() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            startForeground(NOTIFICATION_ID, buildNotification(), foregroundServiceType())
-        } else {
-            startForeground(NOTIFICATION_ID, buildNotification())
-        }
+        // minSdk is 29, so the typed startForeground overload is always available.
+        startForeground(NOTIFICATION_ID, buildNotification(), foregroundServiceType())
     }
 
     private fun foregroundServiceType(): Int {
@@ -509,7 +507,8 @@ class TsConnectionService : LifecycleService(), ViewModelStoreOwner, SavedStateR
     }
 
     private fun hasOverlayPermission(): Boolean {
-        return Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(this)
+        // minSdk is 29 (Android 10), where the runtime overlay permission exists.
+        return Settings.canDrawOverlays(this)
     }
 
     fun showFloatingWindow() {
@@ -530,11 +529,8 @@ class TsConnectionService : LifecycleService(), ViewModelStoreOwner, SavedStateR
         val params = WindowManager.LayoutParams().apply {
             width = WindowManager.LayoutParams.WRAP_CONTENT
             height = WindowManager.LayoutParams.WRAP_CONTENT
-            type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-            } else {
-                WindowManager.LayoutParams.TYPE_PHONE
-            }
+            // minSdk is 29, so TYPE_APPLICATION_OVERLAY is always available.
+            type = WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
             format = PixelFormat.TRANSLUCENT
             flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                     WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
@@ -542,9 +538,7 @@ class TsConnectionService : LifecycleService(), ViewModelStoreOwner, SavedStateR
             gravity = Gravity.TOP or Gravity.START
             x = lastSavedX
             y = lastSavedY
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
-            }
+            layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
         }
 
         val composeView = ComposeView(this).apply {
@@ -891,7 +885,7 @@ class TsConnectionService : LifecycleService(), ViewModelStoreOwner, SavedStateR
                             }
                         }
 
-                        Divider(color = SurfaceMutedTransparent, thickness = 1.dp)
+                        HorizontalDivider(color = SurfaceMutedTransparent, thickness = 1.dp)
 
                         // 2. Simplified Channel User List (Scrollable, clean list items)
                         LazyColumn(
@@ -964,7 +958,7 @@ class TsConnectionService : LifecycleService(), ViewModelStoreOwner, SavedStateR
                             }
                         }
 
-                        Divider(color = SurfaceMutedTransparent, thickness = 1.dp)
+                        HorizontalDivider(color = SurfaceMutedTransparent, thickness = 1.dp)
 
                         // 4. Quick Actions Toolbar (Mute, Deafen, Disconnect) with alpha surfaces
                         Row(
@@ -1010,7 +1004,7 @@ class TsConnectionService : LifecycleService(), ViewModelStoreOwner, SavedStateR
                                 modifier = Modifier.background(SurfaceMutedTransparent, CircleShape)
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.ExitToApp,
+                                    imageVector = Icons.AutoMirrored.Filled.ExitToApp,
                                     contentDescription = "Disconnect",
                                     tint = Color(0xFFFF5252)
                                 )

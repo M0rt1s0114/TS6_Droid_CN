@@ -179,12 +179,8 @@ fun ServerScreen(
 
     // Show floating window when entering ServerScreen if enabled
     LaunchedEffect(enableFloatingWindow) {
-        if (enableFloatingWindow) {
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M && !android.provider.Settings.canDrawOverlays(context)) {
-                // Permission not granted, don't show
-            } else {
-                dev.tsdroid.service.TsConnectionService.instance?.showFloatingWindow()
-            }
+        if (enableFloatingWindow && android.provider.Settings.canDrawOverlays(context)) {
+            dev.tsdroid.service.TsConnectionService.instance?.showFloatingWindow()
         } else {
             dev.tsdroid.service.TsConnectionService.instance?.hideFloatingWindow()
         }

@@ -27,10 +27,10 @@ private const val PAGE_SIZE = 20
 @Composable
 fun ChatView(
     messages: List<ChatMessage>,
+    modifier: Modifier = Modifier,
     showLinkThumbnails: Boolean = false,
     autoLoadImages: Boolean = true,
     onDownload: ((FileAttachment) -> StateFlow<DownloadState>)? = null,
-    modifier: Modifier = Modifier,
 ) {
     val listState = rememberLazyListState()
     var visibleCount by remember { mutableIntStateOf(INITIAL_PAGE) }
