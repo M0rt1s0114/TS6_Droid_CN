@@ -1,4 +1,4 @@
-import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+﻿import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     alias(libs.plugins.android.application)
@@ -14,8 +14,8 @@ android {
         applicationId = "com.yuaxi.ts6droid.cn"
         minSdk = 29
         targetSdk = 36
-        versionCode = 19
-        versionName = "2.1.3-7"
+        versionCode = 20
+        versionName = "2.1.3-8"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

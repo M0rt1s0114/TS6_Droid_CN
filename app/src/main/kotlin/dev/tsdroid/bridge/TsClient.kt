@@ -148,7 +148,7 @@ class TsClient {
          * client; set to true (code-level, before building) to route through
          * tscore-jni. No UI is involved.
          */
-        var useTscoreBackend: Boolean = false
+        var useTscoreBackend: Boolean = true
     }
 
     private fun createNativeClient(
