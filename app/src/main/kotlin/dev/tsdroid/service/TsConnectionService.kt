@@ -497,9 +497,17 @@ class TsConnectionService : LifecycleService(), ViewModelStoreOwner, SavedStateR
             .setSmallIcon(android.R.drawable.ic_btn_speak_now)
             .setContentIntent(contentIntent)
             .setOngoing(true)
-            .addAction(0, micLabel, muteIntent)
-            .addAction(0, speakerLabel, outputMuteIntent)
-            .addAction(0, getString(R.string.disconnect), disconnectIntent)
+            .addAction(
+                if (micMuted) R.drawable.ic_notif_mic_off else R.drawable.ic_notif_mic,
+                micLabel,
+                muteIntent,
+            )
+            .addAction(
+                if (outputMuted) R.drawable.ic_notif_volume_off else R.drawable.ic_notif_volume_up,
+                speakerLabel,
+                outputMuteIntent,
+            )
+            .addAction(R.drawable.ic_notif_power, getString(R.string.disconnect), disconnectIntent)
             .build()
     }
 

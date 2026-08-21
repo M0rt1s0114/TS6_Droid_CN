@@ -3,6 +3,7 @@ package dev.tsdroid
 import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.content.Context
 import android.util.Log
 import dev.tsdroid.data.BookmarkStore
 import dev.tsdroid.diag.DiagLog
@@ -50,14 +51,31 @@ class TsDroidApp : Application() {
     }
 
     private fun createNotificationChannels() {
+        val manager = getSystemService(NotificationManager::class.java)
+
+        // One-time migration: older builds created this channel with
+        // IMPORTANCE_LOW, which makes some OEM ROMs (MIUI/HyperOS) hide the
+        // notification quick actions. Recreate it once at DEFAULT level.
+        val prefs = getSharedPreferences("notification_prefs", Context.MODE_PRIVATE)
+        if (!prefs.getBoolean("connection_channel_upgraded_to_default", false)) {
+            manager.getNotificationChannel(CHANNEL_ID_CONNECTION)?.let { existing ->
+                if (existing.importance != NotificationManager.IMPORTANCE_DEFAULT) {
+                    manager.deleteNotificationChannel(CHANNEL_ID_CONNECTION)
+                }
+            }
+            prefs.edit().putBoolean("connection_channel_upgraded_to_default", true).apply()
+        }
+
         val channel = NotificationChannel(
             CHANNEL_ID_CONNECTION,
             getString(R.string.channel_connection),
-            NotificationManager.IMPORTANCE_LOW
+            NotificationManager.IMPORTANCE_DEFAULT
         ).apply {
             description = getString(R.string.channel_connection_desc)
+            // No sound/vibration for a persistent voice-call notification.
+            setSound(null, null)
+            enableVibration(false)
         }
-        val manager = getSystemService(NotificationManager::class.java)
         manager.createNotificationChannel(channel)
     }
 
