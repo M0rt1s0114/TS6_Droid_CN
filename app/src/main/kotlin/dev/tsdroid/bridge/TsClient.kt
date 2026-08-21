@@ -1,4 +1,4 @@
-package dev.tsdroid.bridge
+﻿package dev.tsdroid.bridge
 
 import android.util.Log
 import dev.tslib.Channel
@@ -7,6 +7,7 @@ import dev.tslib.ConnectionState
 import dev.tslib.Event
 import dev.tslib.Identity
 import dev.tslib.ServerInfo
+import dev.tslib.TscoreClient
 import dev.tslib.User
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.delay
@@ -39,6 +40,100 @@ data class TsFileEntry(
     val isFile: Boolean,
 )
 
+/**
+ * Backend-neutral view of the Java native client. Both `dev.tslib.Client`
+ * (legacy tslib-jni) and `dev.tslib.TscoreClient` (tscore-jni) implement the
+ * same shape, which keeps the surrounding bridge code unchanged.
+ */
+private interface NativeClient {
+    val isConnected: Boolean
+    val clientId: Int?
+    val state: Int
+    val channels: Array<Channel>?
+    val users: Array<User>?
+    val serverInfo: ServerInfo?
+
+    fun waitConnected()
+    fun processEvents(): Array<Event>?
+    fun disconnect()
+    fun close()
+
+    fun sendServerMessage(msg: String)
+    fun sendChannelMessage(msg: String)
+    fun sendPrivateMessage(userId: Int, msg: String)
+    fun moveToChannel(channelId: Long)
+    fun setInputMuted(muted: Boolean)
+    fun sendAudio(data: ByteArray, codec: Int)
+    fun downloadFile(channelId: Long, path: String)
+    fun uploadFile(channelId: Long, path: String, data: ByteArray, overwrite: Boolean)
+    fun listFiles(channelId: Long, path: String)
+    fun queryChannelPermissions(channelId: Long)
+    fun deleteFile(channelId: Long, name: String)
+    fun renameFile(channelId: Long, oldName: String, newName: String)
+    fun createDirectory(channelId: Long, dirname: String)
+}
+
+private class LegacyNativeClient(private val delegate: Client) : NativeClient {
+    override val isConnected: Boolean get() = delegate.isConnected
+    override val clientId: Int? get() = delegate.clientId
+    override val state: Int get() = delegate.state
+    override val channels: Array<Channel>? get() = delegate.channels
+    override val users: Array<User>? get() = delegate.users
+    override val serverInfo: ServerInfo? get() = delegate.serverInfo
+
+    override fun waitConnected() = delegate.waitConnected()
+    override fun processEvents(): Array<Event>? = delegate.processEvents()
+    override fun disconnect() = delegate.disconnect()
+    override fun close() = delegate.close()
+
+    override fun sendServerMessage(msg: String) = delegate.sendServerMessage(msg)
+    override fun sendChannelMessage(msg: String) = delegate.sendChannelMessage(msg)
+    override fun sendPrivateMessage(userId: Int, msg: String) = delegate.sendPrivateMessage(userId, msg)
+    override fun moveToChannel(channelId: Long) = delegate.moveToChannel(channelId)
+    override fun setInputMuted(muted: Boolean) = delegate.setInputMuted(muted)
+    override fun sendAudio(data: ByteArray, codec: Int) = delegate.sendAudio(data, codec)
+    override fun downloadFile(channelId: Long, path: String) = delegate.downloadFile(channelId, path)
+    override fun uploadFile(channelId: Long, path: String, data: ByteArray, overwrite: Boolean) =
+        delegate.uploadFile(channelId, path, data, overwrite)
+    override fun listFiles(channelId: Long, path: String) = delegate.listFiles(channelId, path)
+    override fun queryChannelPermissions(channelId: Long) = delegate.queryChannelPermissions(channelId)
+    override fun deleteFile(channelId: Long, name: String) = delegate.deleteFile(channelId, name)
+    override fun renameFile(channelId: Long, oldName: String, newName: String) =
+        delegate.renameFile(channelId, oldName, newName)
+    override fun createDirectory(channelId: Long, dirname: String) =
+        delegate.createDirectory(channelId, dirname)
+}
+
+private class TscoreNativeClient(private val delegate: TscoreClient) : NativeClient {
+    override val isConnected: Boolean get() = delegate.isConnected
+    override val clientId: Int? get() = delegate.clientId
+    override val state: Int get() = delegate.state
+    override val channels: Array<Channel>? get() = delegate.channels
+    override val users: Array<User>? get() = delegate.users
+    override val serverInfo: ServerInfo? get() = delegate.serverInfo
+
+    override fun waitConnected() = delegate.waitConnected()
+    override fun processEvents(): Array<Event>? = delegate.processEvents()
+    override fun disconnect() = delegate.disconnect()
+    override fun close() = delegate.close()
+
+    override fun sendServerMessage(msg: String) = delegate.sendServerMessage(msg)
+    override fun sendChannelMessage(msg: String) = delegate.sendChannelMessage(msg)
+    override fun sendPrivateMessage(userId: Int, msg: String) = delegate.sendPrivateMessage(userId, msg)
+    override fun moveToChannel(channelId: Long) = delegate.moveToChannel(channelId)
+    override fun setInputMuted(muted: Boolean) = delegate.setInputMuted(muted)
+    override fun sendAudio(data: ByteArray, codec: Int) = delegate.sendAudio(data, codec)
+    override fun downloadFile(channelId: Long, path: String) = delegate.downloadFile(channelId, path)
+    override fun uploadFile(channelId: Long, path: String, data: ByteArray, overwrite: Boolean) =
+        delegate.uploadFile(channelId, path, data, overwrite)
+    override fun listFiles(channelId: Long, path: String) = delegate.listFiles(channelId, path)
+    override fun queryChannelPermissions(channelId: Long) = delegate.queryChannelPermissions(channelId)
+    override fun deleteFile(channelId: Long, name: String) = delegate.deleteFile(channelId, name)
+    override fun renameFile(channelId: Long, oldName: String, newName: String) =
+        delegate.renameFile(channelId, oldName, newName)
+    override fun createDirectory(channelId: Long, dirname: String) =
+        delegate.createDirectory(channelId, dirname)
+}
 class TsClient {
 
     companion object {
@@ -48,6 +143,32 @@ class TsClient {
         private const val DISCONNECT_MIN_FLUSH_MS = 500L
         private const val DISCONNECT_MAX_FLUSH_MS = 2_000L
         private const val DISCONNECT_POLL_MS = 20L
+        /**
+         * Backend switch for A/B testing. Defaults to the legacy tslib-jni
+         * client; set to true (code-level, before building) to route through
+         * tscore-jni. No UI is involved.
+         */
+        var useTscoreBackend: Boolean = false
+    }
+
+    private fun createNativeClient(
+        identity: Identity,
+        nickname: String,
+        password: String?,
+        channel: String?,
+        address: String,
+    ): NativeClient {
+        return if (useTscoreBackend) {
+            Log.i(TAG, "Using tscore backend for $address")
+            val identityExport = try {
+                identity.exportString()
+            } catch (e: Exception) {
+                throw IllegalStateException("Failed to export identity for tscore backend", e)
+            }
+            TscoreNativeClient(TscoreClient(address, identityExport, nickname, password, channel))
+        } else {
+            LegacyNativeClient(Client(address, identity, nickname, password, channel))
+        }
     }
 
     @Volatile
@@ -58,7 +179,7 @@ class TsClient {
     }.asCoroutineDispatcher()
 
     @Volatile
-    private var client: Client? = null
+    private var client: NativeClient? = null
 
     @Volatile
     private var cachedClientId: Int? = null
@@ -119,7 +240,7 @@ class TsClient {
                 var lastFailure: Throwable? = null
                 for (attempt in 0 until MAX_NICKNAME_COLLISION_ATTEMPTS) {
                     val candidateNickname = nicknameWithCollisionSuffix(nickname, attempt)
-                    var pendingClient: Client? = null
+                    var pendingClient: NativeClient? = null
                     var pendingClientConnected = false
                     var retrying = false
                     try {
@@ -129,7 +250,7 @@ class TsClient {
                             if (e is CancellationException) throw e
                             Log.w(TAG, "Failed to update identity nickname before connect", e)
                         }
-                        val c = Client(address, identity, candidateNickname, password, channel)
+                        val c = createNativeClient(identity, candidateNickname, password, channel, address)
                         pendingClient = c
                         c.waitConnected()
                         pendingClientConnected = true
@@ -376,7 +497,7 @@ class TsClient {
         cachedClientId = null
     }
 
-    private fun closeClient(c: Client, reason: String) {
+    private fun closeClient(c: NativeClient, reason: String) {
         var disconnectSent = false
         try {
             c.disconnect()
@@ -393,7 +514,7 @@ class TsClient {
         destroyClient(c, reason)
     }
 
-    private fun flushDisconnect(c: Client, reason: String) {
+    private fun flushDisconnect(c: NativeClient, reason: String) {
         val startedAt = System.currentTimeMillis()
         val minFlushEnd = startedAt + DISCONNECT_MIN_FLUSH_MS
         val maxFlushEnd = startedAt + DISCONNECT_MAX_FLUSH_MS
@@ -428,7 +549,7 @@ class TsClient {
         Log.d(TAG, "Disconnect flush complete ($reason, observedDisconnected=$observedDisconnected)")
     }
 
-    private fun destroyClient(c: Client, reason: String) {
+    private fun destroyClient(c: NativeClient, reason: String) {
         try {
             c.close()
         } catch (e: Throwable) {
@@ -436,7 +557,7 @@ class TsClient {
         }
     }
 
-    private fun launchNativeCommand(name: String, block: Client.() -> Unit) {
+    private fun launchNativeCommand(name: String, block: NativeClient.() -> Unit) {
         clientCoroutineScope.launch {
             val c = client ?: return@launch
             try {

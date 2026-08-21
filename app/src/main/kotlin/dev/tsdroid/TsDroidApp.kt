@@ -25,6 +25,13 @@ class TsDroidApp : Application() {
         init {
             System.loadLibrary("tslib_jni")
             try {
+                // Optional tscore backend used for A/B testing. When the
+                // library is absent the app keeps using tslib_jni only.
+                System.loadLibrary("tscore_jni")
+            } catch (e: UnsatisfiedLinkError) {
+                Log.e("TsDroidApp", "tscore_jni unavailable; legacy backend only", e)
+            }
+            try {
                 // Optional AI-denoiser library; older builds or unsupported
                 // ABIs simply keep using the native NoiseSuppressor fallback.
                 System.loadLibrary("tslib_denoiser")
