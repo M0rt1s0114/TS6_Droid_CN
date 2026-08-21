@@ -14,8 +14,8 @@ android {
         applicationId = "com.yuaxi.ts6droid.cn"
         minSdk = 29
         targetSdk = 36
-        versionCode = 22
-        versionName = "2.1.3-10"
+        versionCode = 23
+        versionName = "2.1.3-11"
 
         ndk {
             // Public releases support real ARM phones only.
