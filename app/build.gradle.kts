@@ -17,6 +17,11 @@ android {
         versionCode = 20
         versionName = "2.1.3-8"
 
+        ndk {
+            // Public releases support real ARM phones only.
+            abiFilters += listOf("arm64-v8a", "armeabi-v7a")
+        }
+
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -33,6 +38,11 @@ android {
 
     buildTypes {
         debug {
+            ndk {
+                // Private/test builds additionally keep x86_64 for emulators.
+                abiFilters.clear()
+                abiFilters.addAll(listOf("arm64-v8a", "armeabi-v7a", "x86_64"))
+            }
             if (signingConfigs.names.contains("release")) {
                 signingConfig = signingConfigs.getByName("release")
             }
